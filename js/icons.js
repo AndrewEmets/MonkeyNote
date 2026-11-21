@@ -14,7 +14,8 @@ function glyphIcon(name) {
 
 const ICONS = {
   logo: () =>
-    `<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="6.5" cy="18" rx="3.3" ry="2.5" transform="rotate(-20 6.5 18)"/><ellipse cx="17" cy="16" rx="3.3" ry="2.5" transform="rotate(-20 17 16)"/><rect x="8.6" y="4.4" width="1.8" height="13.4"/><rect x="19.1" y="2.4" width="1.8" height="13.4"/><path d="M8.6 4.4 20.9 2.4v3.3L8.6 7.7z"/></svg>`,
+    // Stems and beam are one polygon (no seams); stem bottoms end inside the noteheads.
+    `<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.95 3.6 20.45 1.6 20.45 15.6 18.75 15.6 18.75 4.67 9.65 6.13 9.65 17.6 7.95 17.6Z"/><ellipse cx="6.6" cy="18" rx="3.4" ry="2.5" transform="rotate(-20 6.6 18)"/><ellipse cx="17.4" cy="16" rx="3.4" ry="2.5" transform="rotate(-20 17.4 16)"/></svg>`,
   piano: () =>
     stroked(
       `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M9 19v-5M15 19v-5"/><rect x="7.6" y="5" width="2.8" height="8.5" rx=".5" fill="currentColor" stroke="none"/><rect x="13.6" y="5" width="2.8" height="8.5" rx=".5" fill="currentColor" stroke="none"/>`,
