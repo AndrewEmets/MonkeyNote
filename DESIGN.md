@@ -9,7 +9,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 |---|---|
 | Stack | Vanilla HTML + JS (ES modules), no build step. Small libraries only if unavoidable. |
 | Hosting | GitHub Pages, served from `main` root: https://andrewemets.github.io/MonkeyNote/ |
-| Storage | `localStorage` for settings and stats. Backend (login + stats sync) later; Supabase free tier is the candidate. |
+| Storage | `localStorage` only: settings, results (last 5000), personal bests, activity counters. No backend. |
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |
 | Input | MIDI, computer keyboard (piano layout only), on-screen keyboard (optional). |
@@ -17,7 +17,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 
 ## Layout (mirrors MonkeyType)
 
-- **Top bar**: logo, nav icons (test, stats, settings, account later).
+- **Top bar**: logo, nav icons (test, stats, settings).
 - **Test config bar**: toggles (chords, memory, ear) | mode (notes, time, attack, zen, custom) | mode values.
 - **Test area**: a line of notes on a staff with a caret. Played notes take the
   `correct` / `error` theme colors; the line scrolls as you progress.
@@ -112,6 +112,22 @@ restart immediately, as in MonkeyType.)
 - Missed-notes map: a piano tinted by miss rate per pitch, plus the most-missed list.
 - Personal bests per configuration (mode + length + clef + accidentals + ledger lines + chords), stored locally.
 
+## Stats page
+
+Modeled on MonkeyType's account page, all from local data:
+
+- **Summary**: tests started, tests completed, time playing (abandoned tests count toward time), since date.
+- **Personal bests**: notes 10/25/50/100, time 15/30/60/120, attack score per start speed; best across all
+  notation settings, details on hover.
+- **Activity heatmap**: tests per day over the last 12 months.
+- **Filters** (apply to everything below): all / current notation settings; last day / week / month /
+  3 months / all time; mode.
+- **Charts**: npm per test with averages of 10 and 100; accuracy per test (separate chart, no dual axis);
+  speed change per hour of practice (least-squares slope); tests by npm (histogram); practice time per day.
+- **Averages**: highest / average / last-10 npm, accuracy, consistency; tests per active day; notes played.
+- **Weakest notes**: miss rate per pitch over the filtered results, as a tinted piano and a list.
+- **Results table** with load more and CSV export.
+
 ## Settings page
 
 Same long sectioned page with button groups and a search/jump list:
@@ -132,4 +148,4 @@ Same long sectioned page with button groups and a search/jump list:
 4. ✅ Sound and ear mode.
 5. ✅ Attack mode.
 6. ✅ Command palette, custom/random themes, flip colors, themed favicon.
-7. Backend: login and stats sync.
+7. ✅ Stats page (local only; login and sync dropped: no backend).

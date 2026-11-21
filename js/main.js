@@ -7,10 +7,11 @@ import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
+import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.6.0";
+export const VERSION = "0.7.0";
 
-const pages = { test: testPage, settings: settingsPage };
+const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
 
 function renderHeader() {
@@ -18,6 +19,7 @@ function renderHeader() {
     <a class="logo" href="#" aria-label="monkeynote">${icon("logo")}<span class="name">monkeynote</span></a>
     <nav class="nav">
       <a href="#" title="start test" aria-label="start test">${icon("piano")}</a>
+      <a href="#stats" title="stats" aria-label="stats">${icon("chart")}</a>
       <a href="#settings" title="settings" aria-label="settings">${icon("gear")}</a>
     </nav>`;
 }
@@ -38,7 +40,7 @@ function renderFooter() {
 
 function route() {
   const [name, section] = location.hash.replace(/^#/, "").split("/");
-  const pageName = name === "settings" ? "settings" : "test";
+  const pageName = Object.hasOwn(pages, name) ? name : "test";
   const page = pages[pageName];
   if (page !== currentPage) {
     currentPage?.unmount();

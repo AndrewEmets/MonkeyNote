@@ -36,6 +36,13 @@ export const keyName = (fifths) => `${KEYS.find((k) => k.fifths === fifths).name
 
 export const pitchFromDiatonic = (d, alter = 0) => ({ step: ((d % 7) + 7) % 7, octave: Math.floor(d / 7), alter });
 export const diatonicOf = (p) => p.octave * 7 + p.step;
+
+// MIDI number -> pitch, spelled with sharps (used where only the key number is known).
+const SHARP_SPELLING = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [3, 0], [3, 1], [4, 0], [4, 1], [5, 0], [5, 1], [6, 0]];
+export function pitchFromMidi(m) {
+  const [step, alter] = SHARP_SPELLING[((m % 12) + 12) % 12];
+  return { step, alter, octave: Math.floor(m / 12) - 1 };
+}
 export const midiOf = (p) => 12 * (p.octave + 1) + STEP_SEMITONES[p.step] + p.alter;
 
 const ALTER_SIGNS = { "-2": "𝄫", "-1": "♭", 0: "", 1: "♯", 2: "𝄪" };

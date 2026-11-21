@@ -30,6 +30,7 @@ function rootMenu() {
     items: [
       { label: "restart test", icon: "restart", run: restartTest },
       { label: "go to settings", icon: "gear", run: () => (location.hash = "#settings") },
+      { label: "go to stats", icon: "chart", run: () => (location.hash = "#stats") },
       { label: "go to test", icon: "piano", run: () => (location.hash = "") },
       { label: "theme...", icon: "palette", hint: themeLabel(settings.get("theme")), sub: themeMenu },
       ...settingItems,
@@ -72,7 +73,7 @@ function themeMenu() {
 }
 
 function restartTest() {
-  if (location.hash.replace("#", "").startsWith("settings")) location.hash = "";
+  if (/^#?(settings|stats)/.test(location.hash)) location.hash = "";
   else window.dispatchEvent(new Event("monkeynote:restart"));
 }
 

@@ -1,6 +1,6 @@
 // Test page: config bar, staff lines with caret, input handling, live counter, results.
 import { settings } from "../settings.js";
-import { generateItems, keyName, KEYS, midiOf, pitchFromDiatonic, pitchName, staffRange } from "../music.js";
+import { generateItems, keyName, KEYS, midiOf, pitchFromDiatonic, staffRange } from "../music.js";
 import { lineCapacity, renderStaff } from "../staff.js";
 import { icon } from "../icons.js";
 import { input } from "../input.js";
@@ -10,7 +10,7 @@ import { midiRange } from "../midi-range.js";
 import { createPiano } from "../piano.js";
 import { TestEngine } from "../engine.js";
 import { computeResults, renderResults } from "../results.js";
-import { saveResult } from "../history.js";
+import { recordPlayTime, recordTestStart, saveResult } from "../history.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 import { themeNames } from "../theme.js";
@@ -133,6 +133,7 @@ export function mount(container) {
 }
 
 export function unmount() {
+  recordAbandoned();
   stopTimers();
   exitFocusMode();
   document.removeEventListener("keydown", onKeyDown);
@@ -357,7 +358,13 @@ function drawAttack() {
   view.setBlink(engine.state === "idle");
 }
 
+/** A test left unfinished (restart or leaving the page) still counts toward time played. */
+function recordAbandoned() {
+  if (test?.engine?.state === "running") recordPlayTime(performance.now() - test.engine.startTime);
+}
+
 function restart() {
+  recordAbandoned();
   stopTimers();
   exitFocusMode();
   if (settings.get("randomTheme")) {
@@ -451,6 +458,7 @@ function onWrong(index) {
 }
 
 function onStart() {
+  recordTestStart();
   root.classList.add("running");
   document.body.classList.add("focus-mode");
   view?.setBlink(false);
@@ -476,15 +484,17 @@ function showResults() {
   root.classList.remove("running");
   const { cfg, fifths, engine } = test;
   const r = computeResults(engine, cfg, { peakNpm: test.attack?.peak });
+  recordPlayTime(engine.endTime - engine.startTime);
   const { isPb } = saveResult(
     {
       npm: r.npm,
       acc: r.acc,
       consistency: r.consistency,
       seconds: r.seconds,
+      notes: r.score, // notes (or chords) played
       fifths,
       ...(test.attack && { score: r.score, peakNpm: r.peakNpm }),
-      misses: r.pitches.filter((p) => p.misses).map((p) => [pitchName(p.pitch), p.misses, p.attempts]),
+      pitches: r.pitches.map((p) => [p.midi, p.attempts, p.misses]),
     },
     cfg,
   );

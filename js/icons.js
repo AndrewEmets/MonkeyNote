@@ -51,6 +51,9 @@ const ICONS = {
   code: () => stroked(`<path d="m8 6-6 6 6 6M16 6l6 6-6 6"/>`),
   check: () => stroked(`<path d="m5 12 5 5 9-10"/>`),
   volume: () => stroked(`<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>`),
+  chart: () => stroked(`<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>`),
+  filter: () => stroked(`<path d="M3 5h18l-7 8v6l-4 2v-8z"/>`),
+  download: () => stroked(`<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>`),
   heart: () =>
     `<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.5s-8.5-5.1-8.5-11A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 2.9c0 5.9-8.5 11-8.5 11z"/></svg>`,
   crown: () => stroked(`<path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>`),
