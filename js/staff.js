@@ -21,6 +21,7 @@ const ACC_GLYPHS = {
 const ACC_SIGNS = { "-2": "𝄫", "-1": "♭", 0: "", 1: "♯", 2: "𝄪" };
 
 const r = (v) => Math.round(v * 1000) / 1000;
+let clipCounter = 0;
 
 function el(name, attrs, parent) {
   const node = document.createElementNS(NS, name);
@@ -76,7 +77,8 @@ export function lineCapacity(widthUnits, { clef, ledgerLines, fifths, chords, no
 
 /**
  * Render a line of items into `container`.
- * opts: { clef, fifths, ledgerLines, chords, noteNames, items, width (px), staffSpace (px), caretStyle, smoothCaret }
+ * opts: { clef, fifths, ledgerLines, chords, noteNames, items, width (px), staffSpace (px), caretStyle, smoothCaret,
+ *         track (attack mode: scrolling, clipped items with a hit line) }
  * Returns a handle to update item states and the caret without re-rendering.
  */
 export function renderStaff(container, opts) {
@@ -116,16 +118,30 @@ export function renderStaff(container, opts) {
     }, furniture);
   }
 
+  // Attack mode: items and caret sit on a "track" that scrolls left, clipped at a hit line
+  // just after the key signature (notes vanish into it).
+  const hitX = head.itemsStart + 0.3;
+  let parent = svg;
+  let track = null;
+  if (opts.track) {
+    const clipId = `track-clip-${++clipCounter}`;
+    el("rect", { x: r(hitX), y: 0, width: r(W - hitX), height: r(geo.height) }, el("clipPath", { id: clipId }, el("defs", {}, svg)));
+    track = el("g", { class: "track" }, el("g", { "clip-path": `url(#${clipId})` }, svg));
+    parent = track;
+    const tops = Object.values(geo.tops);
+    el("line", { x1: r(hitX), x2: r(hitX), y1: r(Math.min(...tops) - 1.5), y2: r(Math.max(...tops) + 5.5), class: "hit-line", "stroke-width": 0.2 }, svg);
+  }
+
   // Items.
   const slotLeft = (k) => head.itemsStart + k * slot;
   const itemNodes = opts.items.map((item, k) => {
-    const g = el("g", { class: "item pending", "data-index": k, "data-midi": item.notes.map(midiOf).join(" ") }, svg);
+    const g = el("g", { class: "item pending", "data-index": k, "data-midi": item.notes.map(midiOf).join(" ") }, parent);
     drawItem(g, item, slotLeft(k) + ACC_ROOM, (d) => yOf(item.staff, d), opts.fifths, opts.noteNames);
     return g;
   });
 
   // Caret, positioned by a CSS transform so it can animate between items.
-  const caret = el("g", { class: `caret caret-${opts.caretStyle}${opts.smoothCaret ? " smooth" : ""}` }, svg);
+  const caret = el("g", { class: `caret caret-${opts.caretStyle}${opts.smoothCaret ? " smooth" : ""}` }, parent);
   drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines);
 
   container.replaceChildren(svg);
@@ -133,6 +149,13 @@ export function renderStaff(container, opts) {
   return {
     svg,
     count: opts.items.length,
+    // Track geometry (attack mode): item k's notehead is at noteX(k) + offset on screen.
+    hitX,
+    slot,
+    noteX: (k) => slotLeft(k) + ACC_ROOM,
+    setTrackOffset(dx) {
+      track?.setAttribute("transform", `translate(${r(dx)} 0)`);
+    },
     setState(k, state) {
       itemNodes[k]?.setAttribute("class", `item ${state}`);
     },

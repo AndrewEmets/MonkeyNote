@@ -21,26 +21,28 @@ function write(key, value) {
 
 /** Personal bests are tracked per test configuration. */
 export function configKey(cfg) {
-  const value = cfg.mode === "notes" ? cfg.notesCount : cfg.mode === "time" ? cfg.timeLimit : "";
+  const value = { notes: cfg.notesCount, time: cfg.timeLimit, attack: cfg.attackSpeed }[cfg.mode] ?? "";
   const chords = cfg.chords ? (cfg.chordStyle === "random" ? `chords${cfg.maxChordNotes}` : cfg.chordStyle) : "single";
-  return [cfg.mode, value, cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, cfg.memory && "memory", cfg.ear && "ear"].filter(Boolean).join("|");
+  const memory = cfg.memory && cfg.mode !== "attack"; // memory has no effect in attack mode
+  return [cfg.mode, value, cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, memory && "memory", cfg.ear && "ear"].filter(Boolean).join("|");
 }
 
-/** Save a result; returns { isPb, previousPb }. */
+/** Save a result; returns { isPb, previousPb }. Attack mode ranks by score, the rest by npm. */
 export function saveResult(result, cfg) {
   const entry = { date: Date.now(), config: configKey(cfg), ...result };
   const results = read(RESULTS_KEY, []);
   results.push(entry);
   write(RESULTS_KEY, results.slice(-MAX_RESULTS));
 
+  const metric = cfg.mode === "attack" ? "score" : "npm";
   const pbs = read(PBS_KEY, {});
   const previous = pbs[entry.config];
-  const isPb = result.npm > 0 && (!previous || result.npm > previous.npm);
+  const isPb = result[metric] > 0 && (!previous || result[metric] > (previous[metric] ?? 0));
   if (isPb) {
-    pbs[entry.config] = { npm: result.npm, acc: result.acc, date: entry.date };
+    pbs[entry.config] = { [metric]: result[metric], acc: result.acc, date: entry.date };
     write(PBS_KEY, pbs);
   }
-  return { isPb, previousPb: previous?.npm ?? null };
+  return { isPb, previousPb: previous?.[metric] ?? null };
 }
 
 export function clearHistory() {

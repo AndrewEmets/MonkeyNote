@@ -10,7 +10,7 @@ const pitchClass = (m) => ((m % 12) + 12) % 12;
 export class TestEngine {
   /**
    * opts: {
-   *   items, mode: "notes" | "time" | "zen", chordWindow (ms),
+   *   items, mode: "notes" | "time" | "zen" | "attack", chordWindow (ms),
    *   ignoreOctave: "off" | "keyboard" | "all", generateMore(count) -> items,
    *   isOutsideMidiRange(midi) -> bool (optional)
    * }
@@ -18,7 +18,7 @@ export class TestEngine {
   constructor(opts) {
     this.opts = opts;
     this.items = opts.items;
-    this.states = this.items.map(() => "pending"); // pending | correct | corrected
+    this.states = this.items.map(() => "pending"); // pending | correct | corrected | missed (attack)
     this.state = "idle"; // idle | running | done
     this.index = 0;
     this.startTime = null;
@@ -86,18 +86,32 @@ export class TestEngine {
     return pool.reduce((best, i) => (distance(targets[i]) < distance(targets[best]) ? i : best));
   }
 
-  #resolve(now) {
+  /**
+   * Attack mode: the current item scrolled past the hit line before it was played.
+   * It counts as missed (every note in it goes into the miss stats) and the caret moves on.
+   */
+  miss(now) {
+    if (this.state === "done" || !this.current) return;
+    if (this.state === "idle") {
+      this.state = "running";
+      this.startTime = now;
+    }
+    this.attempt ??= { hits: new Map(), misses: new Set() };
+    this.#resolve(now, true);
+  }
+
+  #resolve(now, missed = false) {
     const a = this.attempt;
-    const clean = a.misses.size === 0;
+    const clean = !missed && a.misses.size === 0;
     this.current.notes.forEach((p, i) => {
       const m = midiOf(p);
       const stat = this.pitchStats.get(m) ?? { pitch: p, attempts: 0, misses: 0 };
       stat.attempts++;
-      if (a.misses.has(i)) stat.misses++;
+      if (missed || a.misses.has(i)) stat.misses++;
       this.pitchStats.set(m, stat);
     });
-    this.states[this.index] = clean ? "correct" : "corrected";
-    this.results.push({ index: this.index, t: now, clean });
+    this.states[this.index] = missed ? "missed" : clean ? "correct" : "corrected";
+    this.results.push({ index: this.index, t: now, clean, missed });
     this.index++;
     this.attempt = null;
 

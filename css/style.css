@@ -253,6 +253,58 @@ svg.staff .item.correct {
   fill: var(--text-color);
 }
 
+/* attack mode */
+svg.staff .item.missed {
+  fill: var(--error-color);
+}
+
+svg.staff .hit-line {
+  stroke: var(--main-color);
+  stroke-linecap: round;
+}
+
+.test-counter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.test-counter .lives {
+  display: inline-flex;
+  gap: 0.2rem;
+  font-size: 1.1rem;
+  align-self: center;
+}
+
+.test-counter .life.lost {
+  color: var(--sub-color);
+  opacity: 0.4;
+}
+
+.test-counter .speed {
+  font-size: 0.85rem;
+  color: var(--sub-color);
+}
+
+.test-counter.lost .lives {
+  animation: item-shake-px 0.4s ease-out;
+}
+
+@keyframes item-shake-px {
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
 /* played correctly, but only after one or more wrong notes */
 svg.staff .item.corrected {
   fill: var(--error-extra-color);

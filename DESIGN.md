@@ -31,7 +31,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 |---|---|---|
 | notes | 10 / 25 / 50 / 100 / custom | Play a fixed count. |
 | time | 15 / 30 / 60 / 120 / custom s | Play as many as possible. |
-| attack | — | Notes scroll toward a hit line, speed ramps up. A note crossing the line costs a life (3 lives). Score: notes cleared, peak speed. |
+| attack | 20 / 30 / 45 / 60 npm start | One staff line scrolls toward a hit line after the key signature; speed rises 20 npm per minute. Notes can be played early (in order). A note reaching the line unplayed is missed and costs a life (3 lives). Wrong notes cost time only. Score: notes played; also speed reached and missed count. Memory has no effect here; ear works (notes hidden, played as they come up). |
 | zen | — | Free play, no scoring. |
 | custom | — | User-defined note sequence (later). |
 
@@ -128,10 +128,6 @@ Same long sectioned page with button groups and a search/jump list:
 2. ✅ Core loop: notes, time and zen modes, all three inputs, caret and wrong-note feedback, chords, results screen.
 3. ✅ Options: memory mode, max leap, chord styles, note-name helper.
 4. ✅ Sound and ear mode.
-5. Attack mode.
+5. ✅ Attack mode.
 6. Command palette, full theme set, polish.
 7. Backend: login and stats sync.
-
-## Open details
-
-- Exact attack-mode speed curve.

@@ -97,6 +97,19 @@ test("notes outside the MIDI keyboard's range are accepted in any octave", () =>
   assert.equal(e.state, "done");
 });
 
+test("attack: a missed item is recorded and the caret moves on", () => {
+  const e = make([{ notes: [C4, E4] }, { notes: [G4] }], { mode: "attack" });
+  e.noteOn(60, "midi", 0, notHeld); // half the chord played
+  e.miss(500);
+  assert.equal(e.states[0], "missed");
+  assert.equal(e.index, 1);
+  assert.deepEqual([e.pitchStats.get(60).misses, e.pitchStats.get(64).misses], [1, 1]);
+  assert.equal(e.results[0].missed, true);
+  e.noteOn(67, "midi", 600, notHeld);
+  assert.equal(e.states[1], "correct");
+  assert.equal(e.state, "running"); // attack never ends on its own
+});
+
 test("time mode generates more items", () => {
   const e = make([{ notes: [C4] }], { mode: "time", generateMore: (c) => Array.from({ length: c }, () => ({ notes: [C4] })) });
   e.noteOn(60, "midi", 0, notHeld);

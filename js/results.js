@@ -12,13 +12,13 @@ const kogasa = (cv) => 100 * (1 - Math.tanh(cv + cv ** 3 / 3 + cv ** 5 / 5));
  * cost time (and accuracy) rather than being skipped. The first item starts the clock, so it is
  * excluded from speed (it took no measurable time).
  */
-export function computeResults(engine, cfg) {
+export function computeResults(engine, cfg, { peakNpm = 0 } = {}) {
   const start = engine.startTime;
   const end = cfg.mode === "time" ? start + cfg.timeLimit * 1000 : engine.endTime;
   const durationMs = Math.max(1, end - start);
   const minutes = durationMs / 60000;
   const resolved = engine.results.filter((r) => r.t <= end);
-  const timed = resolved.slice(1);
+  const timed = resolved.slice(1).filter((r) => !r.missed); // attack: missed notes aren't speed
   const presses = engine.presses.filter((p) => p.t <= end);
   const correctPresses = presses.filter((p) => p.correct).length;
 
@@ -49,15 +49,20 @@ export function computeResults(engine, cfg) {
     reactionMs: Math.round(mean),
     seconds: Math.round(durationMs / 100) / 10,
     cleanItems: resolved.filter((r) => r.clean).length,
-    correctedItems: resolved.filter((r) => !r.clean).length,
+    correctedItems: resolved.filter((r) => !r.clean && !r.missed).length,
+    // attack mode
+    score: resolved.filter((r) => !r.missed).length,
+    missedItems: resolved.filter((r) => r.missed).length,
+    peakNpm: Math.round(peakNpm),
     series,
     pitches,
   };
 }
 
 const testType = (cfg, fifths) => {
-  const mode = cfg.mode === "notes" ? `notes ${cfg.notesCount}` : cfg.mode === "time" ? `time ${cfg.timeLimit}` : cfg.mode;
-  const extras = [cfg.chords && "chords", cfg.accidentals === "chromatic" && "chromatic"].filter(Boolean);
+  const value = { notes: cfg.notesCount, time: cfg.timeLimit, attack: cfg.attackSpeed }[cfg.mode];
+  const mode = value ? `${cfg.mode} ${value}` : cfg.mode;
+  const extras = [cfg.chords && "chords", cfg.accidentals === "chromatic" && "chromatic", cfg.memory && cfg.mode !== "attack" && "memory", cfg.ear && "ear"].filter(Boolean);
   return [mode, `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`, extras.join(" · ")].filter(Boolean).join("<br>");
 };
 
@@ -67,10 +72,19 @@ const stat = (label, value, title = "") =>
 /** Render the results screen into `container`. */
 export function renderResults(container, r, { cfg, fifths, isPb }) {
   const misses = r.pitches.filter((p) => p.misses).sort((a, b) => b.misses / b.attempts - a.misses / a.attempts || b.misses - a.misses);
+  const crown = isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : "";
+  const attack = cfg.mode === "attack";
+  const headline = attack
+    ? stat(`score${crown}`, r.score, "notes (or chords) played before running out of lives")
+    : stat(`npm${crown}`, r.npm, "notes (or chords) played per minute");
+  const modeStats = attack
+    ? `${stat("speed reached", `${r.peakNpm} npm`, "how fast the notes were moving at the end")}
+       ${stat("missed", r.missedItems, "notes that reached the line unplayed")}`
+    : "";
   container.innerHTML = `
     <div class="results-main">
       <div class="big-stats">
-        ${stat(`npm${isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : ""}`, r.npm, "notes (or chords) played per minute")}
+        ${headline}
         ${stat("acc", `${r.acc}%`, "correct key presses out of all key presses")}
       </div>
       <div class="chart-box">
@@ -83,6 +97,7 @@ export function renderResults(container, r, { cfg, fifths, isPb }) {
     </div>
     <div class="more-stats">
       ${stat("test type", testType(cfg, fifths))}
+      ${modeStats}
       ${stat("notes", `${r.cleanItems}/${r.correctedItems}`, "first try / needed correction")}
       ${stat("consistency", `${r.consistency}%`, "how even your pace was")}
       ${stat("reaction", r.reactionMs ? `${(r.reactionMs / 1000).toFixed(2)}s` : "-", "average time per note (or chord)")}

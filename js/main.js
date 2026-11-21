@@ -7,7 +7,7 @@ import { audio } from "./audio.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 
-export const VERSION = "0.4.0";
+export const VERSION = "0.5.0";
 
 const pages = { test: testPage, settings: settingsPage };
 let currentPage = null;
