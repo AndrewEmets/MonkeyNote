@@ -7,7 +7,7 @@ const STORAGE_KEY = "monkeynote.settings";
 export const OPTIONS = {
   // test config bar
   mode: ["notes", "time", "attack", "zen"],
-  notesCount: [10, 25, 50, 100],
+  notesCount: [8, 16, 32, 64],
   timeLimit: [15, 30, 60, 120],
   attackSpeed: [20, 30, 45, 60],
   chords: [false, true],
@@ -32,6 +32,8 @@ export const OPTIONS = {
   maxLeap: [1, 2, 3, 4, 7, "any"],
   chordStyle: ["random", "triads", "sevenths", "both"],
   maxChordNotes: [2, 3, 4, 5],
+  chordSingles: [false, true],
+  memoryBatch: [2, 4, 8], // or any custom 1..32 (validated separately)
   noteNames: [false, true],
   // appearance
   noteSize: ["small", "medium", "large", "xl"],
@@ -53,7 +55,7 @@ export function pickColors(theme) {
 
 export const DEFAULTS = {
   mode: "notes",
-  notesCount: 25,
+  notesCount: 16,
   timeLimit: 30,
   attackSpeed: 30,
   chords: false,
@@ -75,6 +77,8 @@ export const DEFAULTS = {
   maxLeap: 7,
   chordStyle: "random",
   maxChordNotes: 3,
+  chordSingles: true,
+  memoryBatch: 4,
   noteNames: false,
   noteSize: "medium",
   staffLines: 2,
@@ -90,6 +94,7 @@ export const DEFAULTS = {
 const HEX = /^#[0-9a-f]{6}$/i;
 const VALIDATORS = {
   theme: (v) => v === "custom" || Object.hasOwn(THEMES, v),
+  memoryBatch: (v) => Number.isInteger(v) && v >= 1 && v <= 32,
   customTheme: (v) => !!v && typeof v === "object" && CUSTOM_THEME_KEYS.every((k) => HEX.test(v[k])),
 };
 const isValid = (key, value) => (VALIDATORS[key] ? VALIDATORS[key](value) : (OPTIONS[key]?.includes(value) ?? false));

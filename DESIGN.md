@@ -19,8 +19,10 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 
 - **Top bar**: logo, nav icons (test, stats, settings).
 - **Test config bar**: toggles (chords, memory, ear) | mode (notes, time, attack, zen, custom) | mode values.
-- **Test area**: a line of notes on a staff with a caret. Played notes take the
-  `correct` / `error` theme colors; the line scrolls as you progress.
+- **Above the staff**: clef and key are clickable dropdowns that change those settings.
+- **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
+  note finishes its animation and the caret moves past it before the next line appears. Played notes take
+  the text color; notes that needed correction the error-extra color.
 - **Below test**: restart button; on-screen keyboard when enabled.
 - **Footer**: shortcut hints, theme name (click to open theme picker).
 - **Shortcuts**: Tab restarts; Esc or Ctrl/Cmd+Shift+P opens the command palette: search every setting
@@ -31,18 +33,19 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 
 | Mode | Values | Notes |
 |---|---|---|
-| notes | 10 / 25 / 50 / 100 / custom | Play a fixed count. |
+| notes | 8 / 16 / 32 / 64 | Play a fixed count. |
 | time | 15 / 30 / 60 / 120 / custom s | Play as many as possible. |
-| attack | 20 / 30 / 45 / 60 npm start | One staff line scrolls toward a hit line after the key signature; speed rises 20 npm per minute. Notes can be played early (in order). A note reaching the line unplayed is missed and costs a life (3 lives). Wrong notes cost time only. Score: notes played; also speed reached and missed count. Memory has no effect here; ear works (notes hidden, played as they come up). |
+| attack | 20 / 30 / 45 / 60 npm start | One staff line scrolls toward a hit line after the key signature; speed rises 20 npm per minute. Notes can be played early (in order). A note reaching the line costs a life (3 lives), turns red and stays current: the notes spring back 4 slots, then restart slowly and speed back up over 2.5 s. Wrong notes cost time only. Score: notes played on time; also speed reached and missed count. Ear works here (notes hidden, played as they come up). |
 | zen | — | Free play, no scoring. |
 | custom | — | User-defined note sequence (later). |
 
 Toggles (combine with notes / time / attack):
 
 - **chords**: items become chords; played together.
-- **memory**: once the first note of the current line is played, the rest of that line fades out
-  (the next line stays visible, so you can memorize it ahead). A wrong note reveals the note it was
-  meant for, since every note has to be played to move on.
+- **memory**: notes come in batches of 2 / 4 / 8 / custom (1–32), chosen in the test bar. The whole batch
+  is shown; once its first note is played the rest fade out; when the batch is done the next one appears.
+  A wrong note reveals the note it was meant for, since every note has to be played to move on.
+  Memory has no effect (toggle shown inactive) in ear mode, which already hides notes, and in attack mode.
 - **ear**: each note (or chord) is played as audio and stays hidden on the staff until you play it.
   The first note is shown as a pitch reference (setting). Replay with space, the replay button,
   or the MIDI sustain pedal. A wrong note replays the target; after 3 wrong tries the note is shown.
@@ -59,6 +62,7 @@ Toggles (combine with notes / time / attack):
 - **Chords**: style random (2–max notes stacked within an octave), triads, sevenths, or both.
   Triads and sevenths are built on the key's scale degrees (so they're the key's own chords),
   in root position and every inversion, and are never chromatically altered.
+- **Single notes in chords** (on by default): about one item in four is a single note when chords are on.
 - **Note names** (helper): the note's letter and accidental next to each notehead.
 
 ## Input

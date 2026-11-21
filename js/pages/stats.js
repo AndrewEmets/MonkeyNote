@@ -7,7 +7,7 @@ import { createPiano } from "../piano.js";
 import { barChart, heatmap, pointsChart } from "../charts.js";
 import { loadPbs, loadResults, loadStats, notationKey } from "../history.js";
 
-const MODE_VALUES = { notes: [10, 25, 50, 100], time: [15, 30, 60, 120], attack: [20, 30, 45, 60] };
+const MODE_VALUES = { notes: [8, 16, 32, 64], time: [15, 30, 60, 120], attack: [20, 30, 45, 60] };
 const RANGES = { day: 1, week: 7, month: 30, "3 months": 90, "all time": Infinity };
 const PAGE = 10;
 

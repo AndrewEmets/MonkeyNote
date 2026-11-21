@@ -34,6 +34,14 @@ test("triads are stacked thirds or their inversions, in range", () => {
   }
 });
 
+test("chord mode mixes in single notes only when asked", () => {
+  const count = (singleRate) =>
+    generateItems(1000, { ...base, chords: true, chordStyle: "triads", singleRate }, seeded(11)).filter((it) => it.notes.length === 1).length;
+  assert.equal(count(0), 0);
+  const some = count(0.25);
+  assert.ok(some > 150 && some < 350, `expected ~250 singles, got ${some}`);
+});
+
 test("sevenths have four notes within an octave and follow the key", () => {
   for (const it of generateItems(300, { ...base, fifths: 2, accidentals: "chromatic", chords: true, chordStyle: "sevenths" }, seeded(3))) {
     const ds = it.notes.map(diatonicOf);

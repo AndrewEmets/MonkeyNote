@@ -125,7 +125,8 @@ function randomChord(rng, bottom, hi, maxNotes) {
  * opts: {
  *   clef, fifths, accidentals: "diatonic" | "chromatic", ledgerLines,
  *   maxLeap (diatonic steps between consecutive items on a staff; Infinity for any),
- *   chords, chordStyle: "random" | "triads" | "sevenths" | "both", maxChordNotes (random style)
+ *   chords, chordStyle: "random" | "triads" | "sevenths" | "both", maxChordNotes (random style),
+ *   singleRate (0..1: share of single notes mixed in when chords are on)
  * }
  * Triads and sevenths are built from the key (so they're the key's own chords) and are never
  * chromatically altered; single notes and random chords may be when accidentals are chromatic.
@@ -141,7 +142,8 @@ export function generateItems(count, opts, rng = Math.random) {
     const [lo, hi] = staffRange(staff, opts.ledgerLines);
     const prev = lastBottom[staff];
     let ds;
-    if (!opts.chords) {
+    const single = !opts.chords || rng() < (opts.singleRate ?? 0);
+    if (single) {
       ds = [pickBottom(rng, lo, hi, prev, leap)];
     } else if (style === "random") {
       ds = randomChord(rng, pickBottom(rng, lo, hi - 2, prev, leap), hi, opts.maxChordNotes);
@@ -152,7 +154,7 @@ export function generateItems(count, opts, rng = Math.random) {
       ds = shape.map((o) => bottom - shape[0] + o);
     }
 
-    const alterable = !opts.chords || style === "random";
+    const alterable = single || style === "random";
     const notes = ds.map((d) => {
       const p = pitchFromDiatonic(d);
       let alter = keyAlter(opts.fifths, p.step);

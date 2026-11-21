@@ -122,6 +122,43 @@ export function closePalette() {
   applyTheme(settings.get("theme"), { persist: false }); // undo any theme preview
 }
 
+/**
+ * Small number prompt in the palette's style (used for "custom" values).
+ * Resolves to the number, or null if cancelled. Counts as an open palette while shown.
+ */
+export function askNumber({ title, value, min, max }) {
+  if (overlay) closePalette();
+  return new Promise((resolve) => {
+    overlay = document.createElement("div");
+    overlay.className = "palette-backdrop";
+    overlay.innerHTML = `
+      <form class="palette palette-number" role="dialog" aria-label="${title}">
+        <div class="palette-input"><span class="palette-crumb">${title}:</span><input type="number" min="${min}" max="${max}" step="1" value="${value}" aria-label="${title}" /></div>
+        <div class="palette-empty">${min}–${max} · enter to apply · esc to cancel</div>
+      </form>`;
+    document.body.appendChild(overlay);
+    const field = overlay.querySelector("input");
+    const done = (result) => {
+      overlay?.remove();
+      overlay = null;
+      resolve(result);
+    };
+    overlay.querySelector("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const n = Math.round(Number(field.value));
+      if (Number.isFinite(n) && n >= min && n <= max) done(n);
+      else field.select();
+    });
+    overlay.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape") done(null);
+    });
+    overlay.addEventListener("mousedown", (e) => e.target === overlay && done(null));
+    field.focus();
+    field.select();
+  });
+}
+
 // ---- rendering ----
 
 function show() {

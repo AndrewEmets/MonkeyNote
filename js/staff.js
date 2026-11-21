@@ -163,8 +163,9 @@ export function renderStaff(container, opts) {
     setHidden(k, hidden) {
       itemNodes[k]?.classList.toggle("hidden", hidden);
     },
+    /** Caret before item k; k = items.length puts it just after the last item; -1 hides it. */
     setCaret(k) {
-      const item = opts.items[k];
+      const item = opts.items[k] ?? (k === opts.items.length ? opts.items[k - 1] : null);
       caret.style.display = item ? "" : "none";
       if (item) caret.style.transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
     },

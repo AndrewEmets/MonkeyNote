@@ -1,5 +1,5 @@
 // Test page: config bar, staff lines with caret, input handling, live counter, results.
-import { settings } from "../settings.js";
+import { OPTIONS, settings } from "../settings.js";
 import { generateItems, keyName, KEYS, midiOf, pitchFromDiatonic, staffRange } from "../music.js";
 import { lineCapacity, renderStaff } from "../staff.js";
 import { icon } from "../icons.js";
@@ -14,18 +14,26 @@ import { recordPlayTime, recordTestStart, saveResult } from "../history.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 import { themeNames } from "../theme.js";
-import { isPaletteOpen } from "../palette.js";
+import { askNumber, isPaletteOpen } from "../palette.js";
+import { closeMenu, openMenu } from "../menu.js";
+import { valueLabel } from "../setting-defs.js";
 import { debug } from "../debug.js";
 
 const STAFF_SPACE = { small: 10, medium: 14, large: 18, xl: 22 };
 const MODE_VALUES = {
-  notes: ["notesCount", [10, 25, 50, 100]],
+  notes: ["notesCount", [8, 16, 32, 64]],
   time: ["timeLimit", [15, 30, 60, 120]],
   attack: ["attackSpeed", [20, 30, 45, 60]], // starting speed, notes per minute
 };
 // Attack mode: speed rises by this many notes per minute, every minute; three misses end the run.
 const ATTACK_RAMP_NPM_PER_MIN = 20;
 const ATTACK_LIVES = 3;
+// After a miss: notes spring back this many slots from the line, then speed recovers gradually.
+const ATTACK_BACKOFF_SLOTS = 4;
+const ATTACK_SPRING_MS = 700;
+const ATTACK_RECOVER_MS = 2500;
+const spring = (p) => 1 - Math.exp(-6 * p) * Math.cos(10 * p); // damped spring, overshoots then settles
+const CHORD_SINGLE_RATE = 0.25; // share of single notes mixed into chord mode, when enabled
 const TOGGLES = [
   ["chords", "chords"],
   ["memory", "eyeOff"],
@@ -42,7 +50,7 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "attackSpeed", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave", "earReference",
+  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordSingles",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -101,6 +109,7 @@ export function mount(container) {
   };
 
   els.config.addEventListener("click", onConfigClick);
+  els.meta.addEventListener("click", onMetaClick);
   root.querySelector(".restart-button").addEventListener("click", (e) => {
     e.currentTarget.blur();
     restart();
@@ -139,6 +148,7 @@ export function mount(container) {
 }
 
 export function unmount() {
+  closeMenu();
   recordAbandoned();
   stopTimers();
   exitFocusMode();
@@ -221,23 +231,45 @@ function stopAutoplay() {
 
 // ---- config bar ----
 
+const MEMORY_BATCHES = [2, 4, 8];
+
+/** Memory has no effect in ear mode (ear already hides notes) or in attack mode (notes vanish anyway). */
+const memoryApplies = (s) => !s.ear && s.mode !== "attack";
+
 function renderConfig() {
   const s = settings.all();
-  const button = (key, value, label, iconName, active) =>
-    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+  const button = (key, value, label, iconName, active, extra = "") =>
+    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}' ${extra}>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+  const toggle = ([key, ic]) => {
+    const inert = key === "memory" && !memoryApplies(s);
+    const title = inert ? `title="memory has no effect in ${s.ear ? "ear" : "attack"} mode"` : "";
+    return button(key, !s[key], key, ic, s[key], `${inert ? "disabled" : ""} ${title}`);
+  };
   const [valueKey, values] = MODE_VALUES[s.mode] ?? [];
+  const custom = !MEMORY_BATCHES.includes(s.memoryBatch);
+  const batch =
+    s.memory && memoryApplies(s)
+      ? `<div class="divider"></div><div class="group" title="notes to memorize at a time">${icon("eyeOff")}${MEMORY_BATCHES.map((v) =>
+          button("memoryBatch", v, v, null, s.memoryBatch === v),
+        ).join("")}<button class="text-button${custom ? " active" : ""}" data-action="memory-custom">${custom ? s.memoryBatch : "custom"}</button></div>`
+      : "";
   els.config.innerHTML = `
-    <div class="group">${TOGGLES.map(([key, ic]) => button(key, !s[key], key, ic, s[key])).join("")}</div>
+    <div class="group">${TOGGLES.map(toggle).join("")}</div>
     <div class="divider"></div>
     <div class="group">${MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode)).join("")}</div>
-    ${valueKey ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("")}</div>` : ""}`;
+    ${valueKey ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("")}</div>` : ""}
+    ${batch}`;
 }
 
-function onConfigClick(e) {
-  const btn = e.target.closest("button[data-key]");
+async function onConfigClick(e) {
+  const btn = e.target.closest("button");
   if (!btn) return;
   btn.blur();
-  settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
+  if (btn.dataset.key) settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
+  else if (btn.dataset.action === "memory-custom") {
+    const n = await askNumber({ title: "notes to memorize", value: settings.get("memoryBatch"), min: 1, max: 32 });
+    if (n !== null) settings.set("memoryBatch", n);
+  }
 }
 
 // ---- on-screen piano and input hint ----
@@ -326,23 +358,47 @@ function attackFrame(now) {
   a.npm = a.startNpm + ATTACK_RAMP_NPM_PER_MIN * ((performance.now() - engine.startTime) / 60000);
   a.peak = Math.max(a.peak, a.npm);
   const { x0, hitX, slot } = view.attack;
-  a.distance += (a.npm / 60) * slot * dt;
+  const r = a.recover;
 
-  while (engine.state === "running" && x0 + engine.index * slot - a.distance <= hitX) {
-    const missed = engine.index;
-    engine.miss(performance.now());
-    a.lives--;
-    if (settings.get("errorSound")) audio.error();
-    els.counter.classList.remove("lost");
-    void els.counter.offsetWidth;
-    els.counter.classList.add("lost");
-    if (a.lives <= 0) return finish(performance.now());
-    view.update(missed);
-    scheduleEarPlay(200);
+  if (r?.phase === "spring") {
+    // After a miss: the notes spring back to the right...
+    const p = Math.min(1, (now - r.start) / ATTACK_SPRING_MS);
+    a.distance = r.from + (r.to - r.from) * spring(p);
+    if (p >= 1) a.recover = { phase: "ramp", start: now };
+  } else {
+    // ...then start again slowly and speed back up to the current npm.
+    const factor = r ? Math.min(1, ((now - r.start) / ATTACK_RECOVER_MS) ** 2) : 1;
+    if (r && factor >= 1) a.recover = null;
+    a.distance += (a.npm / 60) * slot * dt * factor;
+    if (x0 + engine.index * slot - a.distance <= hitX && !onAttackMiss(now)) return;
   }
   view.scroll();
   renderCounter();
   a.raf = requestAnimationFrame(attackFrame);
+}
+
+/**
+ * The current note reached the line: lose a life, mark it missed (it still has to be played) and
+ * spring the notes back. Returns false when that was the last life.
+ */
+function onAttackMiss(now) {
+  const { attack: a, engine } = test;
+  const { x0, hitX, slot } = view.attack;
+  const index = engine.index;
+  engine.miss(performance.now());
+  a.lives--;
+  if (settings.get("errorSound")) audio.error();
+  els.counter.classList.remove("lost");
+  void els.counter.offsetWidth;
+  els.counter.classList.add("lost");
+  if (a.lives <= 0) {
+    finish(performance.now());
+    return false;
+  }
+  view.markMissed(index);
+  a.recover = { phase: "spring", start: now, from: a.distance, to: x0 + index * slot - (hitX + ATTACK_BACKOFF_SLOTS * slot) };
+  scheduleEarPlay(200);
+  return true;
 }
 
 /** Attack mode view: one staff line whose notes scroll toward the hit line. */
@@ -364,12 +420,14 @@ function drawAttack() {
     base = Math.max(0, Math.floor((a.distance - (x0 - hitX)) / slot) - 1);
     end = Math.min(engine.items.length, base + Math.ceil((W - hitX) / slot) + 8);
     handle = renderStaff(els.staff, { ...layout, items: engine.items.slice(base, end), width, staffSpace, caretStyle: s.caretStyle, smoothCaret: false });
-    for (let k = base; k < end; k++) handle.setState(k - base, engine.states[k]);
+    for (let k = base; k < end; k++) handle.setState(k - base, stateOf(k));
     handle.setCaret(engine.index - base);
     view.attack = { x0, hitX, slot };
     applyHiding();
     view.scroll();
   };
+  // A missed note that is still current shows red until it's played.
+  const stateOf = (k) => (k === engine.index && engine.currentMissed ? "pending missed" : engine.states[k]);
   const applyHiding = () => {
     const { ear, earReference } = test.cfg;
     if (!ear) return;
@@ -384,9 +442,9 @@ function drawAttack() {
       const { x0, hitX, slot } = view.attack;
       // Re-render once the window has drifted: new notes coming in, or old ones long gone.
       const neededEnd = Math.floor((a.distance + W - x0) / slot) + 2;
-      const neededBase = Math.floor((a.distance - (x0 - hitX)) / slot) - 1;
+      const neededBase = Math.max(0, Math.floor((a.distance - (x0 - hitX)) / slot) - 1);
       if (neededEnd >= end && end < engine.items.length) return render();
-      if (neededBase > base + 8) return render();
+      if (neededBase > base + 8 || neededBase < base) return render(); // < base: sprang back after a miss
       handle.setTrackOffset(base * slot - a.distance);
     },
     update(prevIndex) {
@@ -402,6 +460,9 @@ function drawAttack() {
       test.revealed.add(index);
       if (index >= base && index < end) handle.setHidden(index - base, false);
     },
+    markMissed(index) {
+      if (index >= base && index < end) handle.setState(index - base, stateOf(index));
+    },
     setBlink(on) {
       handle?.setCaretBlink(on);
     },
@@ -410,9 +471,14 @@ function drawAttack() {
   view.setBlink(engine.state === "idle");
 }
 
-/** A test left unfinished (restart or leaving the page) still counts toward time played. */
+/**
+ * A test left unfinished (restart or leaving the page) still counts as started and toward time played.
+ * Tests where a debug cheat was used aren't recorded at all.
+ */
 function recordAbandoned() {
-  if (test?.engine?.state === "running") recordPlayTime(performance.now() - test.engine.startTime);
+  if (test?.engine?.state !== "running" || test.cheated) return;
+  recordTestStart();
+  recordPlayTime(performance.now() - test.engine.startTime);
 }
 
 function restart() {
@@ -434,6 +500,7 @@ function restart() {
     chords: cfg.chords,
     chordStyle: cfg.chordStyle,
     maxChordNotes: cfg.maxChordNotes,
+    singleRate: cfg.chordSingles ? CHORD_SINGLE_RATE : 0,
   };
   const engine = new TestEngine({
     items: generateItems(cfg.mode === "notes" ? cfg.notesCount : 100, genOpts),
@@ -452,14 +519,32 @@ function restart() {
   els.menu.hidden = true;
   els.area.hidden = false;
   els.piano.hidden = !cfg.onScreenKeyboard;
-  const meta = `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`;
-  const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
-  els.meta.textContent = task ? `${meta} · ${task}` : meta;
+  renderMeta();
   root.classList.remove("running");
   renderCounter();
   renderHint();
   draw();
   scheduleEarPlay(500);
+}
+
+/** Line above the staff: clef and key are dropdowns (they change the settings), then the task hint. */
+function renderMeta() {
+  const { cfg, fifths, attack } = test;
+  const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
+  const key = `${keyName(fifths)}${cfg.keySignature === "random" ? " (random)" : ""}`;
+  const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
+  els.meta.innerHTML = `<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button>${task ? ` · ${task}` : ""}`;
+}
+
+function onMetaClick(e) {
+  const btn = e.target.closest("[data-pick]");
+  if (!btn) return;
+  const key = btn.dataset.pick;
+  const label = (v) => (key === "keySignature" ? (v === "random" ? "random key" : keyName(v)) : valueLabel(key, v));
+  openMenu(
+    btn,
+    OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })),
+  );
 }
 
 const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
@@ -478,6 +563,7 @@ function onInput(ev) {
   if (showingResults()) return onMenuNote(ev);
   const engine = test?.engine;
   if (!engine || engine.state === "done") return;
+  if (ev.source === "debug") test.cheated = true;
 
   const before = engine.index;
   const out = engine.noteOn(ev.midi, ev.source, ev.time, input.isHeld);
@@ -490,7 +576,8 @@ function onInput(ev) {
     scheduleEarPlay(350);
   }
   renderCounter();
-  if (engine.state === "done") showResults();
+  // Let the last note animate first (unless a restart happens meanwhile).
+  if (engine.state === "done") setTimeout(() => test?.engine === engine && showResults(), LINE_END_MS);
 }
 
 /**
@@ -510,7 +597,6 @@ function onWrong(index) {
 }
 
 function onStart() {
-  recordTestStart();
   root.classList.add("running");
   document.body.classList.add("focus-mode");
   view?.setBlink(false);
@@ -537,24 +623,28 @@ function showResults() {
   root.classList.remove("running");
   const { cfg, fifths, engine } = test;
   const r = computeResults(engine, cfg, { peakNpm: test.attack?.peak });
-  recordPlayTime(engine.endTime - engine.startTime);
-  const { isPb } = saveResult(
-    {
-      npm: r.npm,
-      acc: r.acc,
-      consistency: r.consistency,
-      seconds: r.seconds,
-      notes: r.score, // notes (or chords) played
-      fifths,
-      ...(test.attack && { score: r.score, peakNpm: r.peakNpm }),
-      pitches: r.pitches.map((p) => [p.midi, p.attempts, p.misses]),
-    },
-    cfg,
-  );
+  let isPb = false;
+  if (!test.cheated) {
+    recordTestStart();
+    recordPlayTime(engine.endTime - engine.startTime);
+    ({ isPb } = saveResult(
+      {
+        npm: r.npm,
+        acc: r.acc,
+        consistency: r.consistency,
+        seconds: r.seconds,
+        notes: r.score, // notes (or chords) played
+        fifths,
+        ...(test.attack && { score: r.score, peakNpm: r.peakNpm }),
+        pitches: r.pitches.map((p) => [p.midi, p.attempts, p.misses]),
+      },
+      cfg,
+    ));
+  }
   els.area.hidden = true;
   els.piano.hidden = true;
   els.results.hidden = false;
-  renderResults(els.results, r, { cfg, fifths, isPb });
+  renderResults(els.results, r, { cfg, fifths, isPb, note: test.cheated ? "debug run: not saved to stats" : "" });
   resultsShownAt = performance.now();
   renderMidiMenu();
 }
@@ -618,75 +708,115 @@ function exitFocusMode() {
 
 // ---- staff lines ----
 
-/** Draw the visible staff lines (the current item's line, then the next ones) and set `view`. */
+const LINE_END_MS = 260; // let the last note of a line (or batch) finish animating before moving on
+let pendingRedraw = null;
+
+/**
+ * Draw the visible staff lines and set `view`.
+ * Normal: the current item's line, then the next ones (staff lines setting).
+ * Memory (without ear): only the current batch of N notes (memory batch setting), wrapped if needed.
+ */
 function draw() {
+  clearTimeout(pendingRedraw);
+  pendingRedraw = null;
   if (!test || !els.staff.clientWidth) return;
   if (test.attack) return drawAttack();
   const s = settings.all();
-  const { engine, genOpts } = test;
+  const { engine, genOpts, cfg } = test;
   const staffSpace = STAFF_SPACE[s.noteSize];
   const width = els.staff.clientWidth;
   const layout = { ...genOpts, noteNames: s.noteNames };
   const capacity = lineCapacity(width / staffSpace, layout);
-  const firstLine = Math.floor(Math.min(engine.index, engine.items.length - 1) / capacity);
+  const memory = cfg.memory && !cfg.ear;
+  const pageSize = memory ? cfg.memoryBatch : capacity;
+  const pageOf = (i) => Math.floor(Math.min(i, engine.items.length - 1) / pageSize);
+  const page = pageOf(engine.index);
+  const pageStart = page * pageSize;
+
+  // Line ranges [start, end) to show.
+  const ranges = [];
+  if (memory) {
+    const pageEnd = Math.min(pageStart + pageSize, engine.items.length);
+    for (let a = pageStart; a < pageEnd; a += capacity) ranges.push([a, Math.min(a + capacity, pageEnd)]);
+  } else {
+    for (let l = 0; l < s.staffLines; l++) {
+      const a = pageStart + l * capacity;
+      if (a >= engine.items.length) break;
+      ranges.push([a, Math.min(a + capacity, engine.items.length)]);
+    }
+  }
 
   els.staff.replaceChildren();
-  const lines = [];
-  for (let l = 0; l < s.staffLines; l++) {
-    const startIndex = (firstLine + l) * capacity;
-    const items = engine.items.slice(startIndex, startIndex + capacity);
-    if (!items.length) break;
+  const lines = ranges.map(([a, b]) => {
     const holder = document.createElement("div");
     holder.className = "staff-row";
     els.staff.appendChild(holder);
+    const items = engine.items.slice(a, b);
     const handle = renderStaff(holder, { ...layout, items, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
-    items.forEach((_, k) => handle.setState(k, engine.states[startIndex + k]));
-    handle.setCaret(l === 0 ? engine.index - startIndex : -1);
-    lines.push({ handle, startIndex, count: items.length });
-  }
+    items.forEach((_, k) => handle.setState(k, engine.states[a + k]));
+    return { handle, startIndex: a, count: b - a };
+  });
   const locate = (index) => {
-    const line = lines.find((ln) => index >= ln.startIndex && index < ln.startIndex + capacity);
+    const line = lines.find((ln) => index >= ln.startIndex && index < ln.startIndex + ln.count);
     return line ? { line, k: index - line.startIndex } : null;
   };
+  const placeCaret = (index) => {
+    const cur = locate(index);
+    lines.forEach((ln) => ln.handle.setCaret(ln === cur?.line ? cur.k : -1));
+  };
+  placeCaret(engine.index);
 
   // Hidden notes. Ear mode: every unplayed note is hidden (except the first, as a pitch reference,
-  // if enabled). Memory mode: once the first note of the current line is played, the rest of that
-  // line fades out. Notes revealed after wrong tries (see onWrong) stay visible.
+  // if enabled). Memory mode: once the first note of the batch is played, the rest of it fades out.
+  // Notes revealed after wrong tries (see onWrong) stay visible.
   const applyHiding = () => {
-    const { memory, ear, earReference } = test.cfg;
+    const { ear, earReference } = cfg;
     if (!memory && !ear) return;
-    lines.forEach(({ handle, startIndex, count }, l) => {
+    for (const { handle, startIndex, count } of lines) {
       for (let k = 0; k < count; k++) {
         const index = startIndex + k;
         if (engine.states[index] !== "pending") continue;
-        const hide = ear ? !(earReference && index === 0) : l === 0 && engine.index > startIndex;
+        const hide = ear ? !(earReference && index === 0) : engine.index > pageStart;
         handle.setHidden(k, hide && !test.revealed.has(index));
       }
-    });
+    }
   };
   applyHiding();
 
+  // If a redraw is waiting (end-of-line animation), do it now and hand the call to the new view.
+  const flush = () => {
+    if (!pendingRedraw) return false;
+    draw();
+    return true;
+  };
+
   view = {
     update(prevIndex) {
-      // Moving to a new line re-renders, so the current line is always on top.
-      if (Math.floor(Math.min(engine.index, engine.items.length - 1) / capacity) !== firstLine) return draw();
+      if (flush()) return view.update(prevIndex);
       const prev = locate(prevIndex);
       prev?.line.handle.setState(prev.k, engine.states[prevIndex]);
-      const cur = locate(engine.index);
-      lines[0].handle.setCaret(cur ? cur.k : -1);
+      if (pageOf(engine.index) !== page) {
+        // Last note of the line or batch: show it played and the caret past it, then move on.
+        prev?.line.handle.setCaret(prev.k + 1);
+        pendingRedraw = setTimeout(draw, LINE_END_MS);
+        return;
+      }
+      placeCaret(engine.index);
       applyHiding();
     },
     shakeItem(index) {
+      if (flush()) return view.shakeItem(index);
       const loc = locate(index);
       loc?.line.handle.shakeItem(loc.k);
     },
     reveal(index) {
+      if (flush()) return view.reveal(index);
       test.revealed.add(index);
       const loc = locate(index);
       loc?.line.handle.setHidden(loc.k, false);
     },
     setBlink(on) {
-      lines[0]?.handle.setCaretBlink(on);
+      lines.forEach((ln) => ln.handle.setCaretBlink(on));
     },
   };
   view.setBlink(engine.state === "idle");

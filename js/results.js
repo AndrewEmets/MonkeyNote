@@ -70,7 +70,7 @@ const stat = (label, value, title = "") =>
   `<div class="stat"${title ? ` title="${title}"` : ""}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
 
 /** Render the results screen into `container`. */
-export function renderResults(container, r, { cfg, fifths, isPb }) {
+export function renderResults(container, r, { cfg, fifths, isPb, note = "" }) {
   const misses = r.pitches.filter((p) => p.misses).sort((a, b) => b.misses / b.attempts - a.misses / a.attempts || b.misses - a.misses);
   const crown = isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : "";
   const attack = cfg.mode === "attack";
@@ -82,6 +82,7 @@ export function renderResults(container, r, { cfg, fifths, isPb }) {
        ${stat("missed", r.missedItems, "notes that reached the line unplayed")}`
     : "";
   container.innerHTML = `
+    ${note ? `<div class="results-note">${icon("bug")}<span>${note}</span></div>` : ""}
     <div class="results-main">
       <div class="big-stats">
         ${headline}

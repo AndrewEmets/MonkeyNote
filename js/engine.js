@@ -87,8 +87,8 @@ export class TestEngine {
   }
 
   /**
-   * Attack mode: the current item scrolled past the hit line before it was played.
-   * It counts as missed (every note in it goes into the miss stats) and the caret moves on.
+   * Attack mode: the current item reached the hit line before it was played. It is marked missed
+   * (every note in it goes into the miss stats) but stays current: it still has to be played.
    */
   miss(now) {
     if (this.state === "done" || !this.current) return;
@@ -97,11 +97,17 @@ export class TestEngine {
       this.startTime = now;
     }
     this.attempt ??= { hits: new Map(), misses: new Set() };
-    this.#resolve(now, true);
+    this.attempt.missed = true;
   }
 
-  #resolve(now, missed = false) {
+  /** Whether the current item has been marked missed (attack mode). */
+  get currentMissed() {
+    return !!this.attempt?.missed;
+  }
+
+  #resolve(now) {
     const a = this.attempt;
+    const missed = !!a.missed;
     const clean = !missed && a.misses.size === 0;
     this.current.notes.forEach((p, i) => {
       const m = midiOf(p);

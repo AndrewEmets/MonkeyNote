@@ -788,6 +788,80 @@ body.focus-mode .restart-button {
 
 .test-page.running .test-meta {
   opacity: 0;
+  pointer-events: none;
+}
+
+.meta-pick {
+  color: var(--sub-color);
+  border-bottom: 1px dashed transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.meta-pick:hover {
+  color: var(--text-color);
+  border-bottom-color: var(--sub-color);
+}
+
+.dropdown {
+  position: absolute;
+  z-index: 15;
+  min-width: 10rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0.3rem;
+  border-radius: var(--radius);
+  background: var(--sub-alt-color);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.3);
+  animation: palette-in 0.1s;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.3rem;
+  color: var(--text-color);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+.dropdown-item.active {
+  color: var(--main-color);
+}
+
+.dropdown-item.active:hover {
+  color: var(--bg-color);
+}
+
+.text-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.text-button:disabled:hover {
+  color: var(--sub-color);
+}
+
+.text-button.active:disabled:hover {
+  color: var(--main-color);
+}
+
+.results-note {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  color: var(--main-color);
+  font-size: 0.85rem;
 }
 
 .staff-row + .staff-row {
