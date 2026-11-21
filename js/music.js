@@ -65,54 +65,96 @@ export function staffRange(staff, ledgerLines) {
   return [bottom - 2 * ledgerLines - 1, bottom + 8 + 2 * ledgerLines + 1];
 }
 
-const MAX_LEAP = 7; // max diatonic distance between consecutive items on the same staff
-
 const randInt = (rng, lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
 
+// Chord shapes as diatonic offsets from the chord root: root position, then each inversion.
+const CHORD_SHAPES = {
+  triads: [
+    [0, 2, 4],
+    [2, 4, 7],
+    [4, 7, 9],
+  ],
+  sevenths: [
+    [0, 2, 4, 6],
+    [2, 4, 6, 7],
+    [4, 6, 7, 9],
+    [6, 7, 9, 11],
+  ],
+};
+CHORD_SHAPES.both = [...CHORD_SHAPES.triads, ...CHORD_SHAPES.sevenths];
+
+/**
+ * Pick the lowest note of the next item: within [lo, hi] and at most `leap` steps from `prev`,
+ * avoiding a repeat of `prev` when there's any other choice.
+ */
+function pickBottom(rng, lo, hi, prev, leap) {
+  if (prev === undefined) return randInt(rng, lo, hi);
+  const a = Math.max(lo, prev - leap);
+  const b = Math.min(hi, prev + leap);
+  if (a > b) return randInt(rng, lo, hi); // previous note is out of reach (e.g. after a range change)
+  if (a === b) return a;
+  const d = randInt(rng, a, b - 1);
+  return d >= prev && prev >= a && prev <= b ? d + 1 : d;
+}
+
+/** Random stack of 2..maxNotes notes within an octave above `bottom` (and at most `hi`). */
+function randomChord(rng, bottom, hi, maxNotes) {
+  const ds = [bottom];
+  const size = randInt(rng, 2, maxNotes);
+  const ceiling = Math.min(hi, bottom + 7);
+  let top = bottom;
+  while (ds.length < size) {
+    const limit = ceiling - top - (size - ds.length - 1);
+    if (limit < 1) break;
+    top += Math.min(pick(rng, [1, 2, 2, 2, 3, 3]), limit);
+    ds.push(top);
+  }
+  return ds;
+}
+
 /**
  * Generate test items. Each item is { staff, notes: [pitch] } (one note, or a chord).
- * opts: { clef, fifths, accidentals: "diatonic" | "chromatic", ledgerLines, chords, maxChordNotes }
+ * opts: {
+ *   clef, fifths, accidentals: "diatonic" | "chromatic", ledgerLines,
+ *   maxLeap (diatonic steps between consecutive items on a staff; Infinity for any),
+ *   chords, chordStyle: "random" | "triads" | "sevenths" | "both", maxChordNotes (random style)
+ * }
+ * Triads and sevenths are built from the key (so they're the key's own chords) and are never
+ * chromatically altered; single notes and random chords may be when accidentals are chromatic.
  */
 export function generateItems(count, opts, rng = Math.random) {
   const staves = opts.clef === "grand" ? ["treble", "bass"] : [opts.clef];
+  const leap = opts.maxLeap ?? 7;
+  const style = opts.chordStyle ?? "random";
   const items = [];
-  const lastRoot = {};
+  const lastBottom = {};
   for (let i = 0; i < count; i++) {
     const staff = pick(rng, staves);
     const [lo, hi] = staffRange(staff, opts.ledgerLines);
-    const prev = lastRoot[staff];
-    const maxRoot = opts.chords ? hi - 2 : hi;
-    let root;
-    for (let tries = 0; tries < 50; tries++) {
-      root = randInt(rng, lo, maxRoot);
-      if (prev === undefined) break;
-      if (Math.abs(root - prev) <= MAX_LEAP && root !== prev) break;
+    const prev = lastBottom[staff];
+    let ds;
+    if (!opts.chords) {
+      ds = [pickBottom(rng, lo, hi, prev, leap)];
+    } else if (style === "random") {
+      ds = randomChord(rng, pickBottom(rng, lo, hi - 2, prev, leap), hi, opts.maxChordNotes);
+    } else {
+      const shape = pick(rng, CHORD_SHAPES[style]);
+      const span = shape[shape.length - 1] - shape[0];
+      const bottom = pickBottom(rng, lo, hi - span, prev, leap);
+      ds = shape.map((o) => bottom - shape[0] + o);
     }
 
-    const ds = [root];
-    if (opts.chords) {
-      const size = randInt(rng, 2, opts.maxChordNotes);
-      const ceiling = Math.min(hi, root + 7); // keep chords within an octave
-      let top = root;
-      while (ds.length < size) {
-        const needed = size - ds.length;
-        const limit = ceiling - top - (needed - 1);
-        if (limit < 1) break;
-        top += Math.min(pick(rng, [1, 2, 2, 2, 3, 3]), limit);
-        ds.push(top);
-      }
-    }
-
+    const alterable = !opts.chords || style === "random";
     const notes = ds.map((d) => {
       const p = pitchFromDiatonic(d);
       let alter = keyAlter(opts.fifths, p.step);
-      if (opts.accidentals === "chromatic" && rng() < 0.2) alter = alter !== 0 ? 0 : rng() < 0.5 ? 1 : -1;
+      if (alterable && opts.accidentals === "chromatic" && rng() < 0.2) alter = alter !== 0 ? 0 : rng() < 0.5 ? 1 : -1;
       p.alter = alter;
       return p;
     });
     items.push({ staff, notes });
-    lastRoot[staff] = root;
+    lastBottom[staff] = ds[0];
   }
   return items;
 }

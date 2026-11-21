@@ -38,7 +38,9 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 Toggles (combine with notes / time / attack):
 
 - **chords**: items become chords; played together.
-- **memory**: notes fade out once the first note of the line is played.
+- **memory**: once the first note of the current line is played, the rest of that line fades out
+  (the next line stays visible, so you can memorize it ahead). A wrong note reveals the note it was
+  meant for, since every note has to be played to move on.
 - **ear**: notes are played as audio, staff hidden; replay key. First note shown
   as a pitch reference by default (setting).
 
@@ -49,9 +51,11 @@ Toggles (combine with notes / time / attack):
 - **Range**: lowest / highest note, per staff.
 - **Key signature**: fixed or random per test.
 - **Accidentals**: none / in key only / chromatic.
-- **Max leap** between consecutive items, so lines stay playable.
-- **Chords**: max notes per chord (2–5); notes within one hand span (an octave);
-  style random / triads / sevenths, with inversions.
+- **Max leap** between consecutive items on a staff: 2nd / 3rd / 4th / 5th / octave (default) / any.
+- **Chords**: style random (2–max notes stacked within an octave), triads, sevenths, or both.
+  Triads and sevenths are built on the key's scale degrees (so they're the key's own chords),
+  in root position and every inversion, and are never chromatically altered.
+- **Note names** (helper): the note's letter and accidental next to each notehead.
 
 ## Input
 
@@ -120,7 +124,7 @@ Same long sectioned page with button groups and a search/jump list:
 
 1. ✅ Skeleton: layout, theme system, settings store, SVG staff renderer, Pages deploy.
 2. ✅ Core loop: notes, time and zen modes, all three inputs, caret and wrong-note feedback, chords, results screen.
-3. Options: memory mode, max leap, chord styles, note-name helper.
+3. ✅ Options: memory mode, max leap, chord styles, note-name helper.
 4. Sound and ear mode.
 5. Attack mode.
 6. Command palette, full theme set, polish.

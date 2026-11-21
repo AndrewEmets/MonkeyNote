@@ -236,7 +236,17 @@ svg.staff .brace {
 
 svg.staff .item {
   fill: var(--sub-color);
-  transition: fill 0.1s;
+  transition: fill 0.1s, opacity 0.4s;
+}
+
+/* memory mode */
+svg.staff .item.hidden {
+  opacity: 0;
+}
+
+svg.staff .note-name {
+  font-family: var(--font);
+  font-size: 0.95px; /* SVG user units = staff spaces */
 }
 
 svg.staff .item.correct {

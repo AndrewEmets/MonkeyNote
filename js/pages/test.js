@@ -30,10 +30,10 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 // Settings that need a new test vs. ones that only change how it looks.
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "chords", "memory", "ear",
-  "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes",
+  "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
   "chordWindow", "ignoreOctave",
 ]);
-const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines"]);
+const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
 
 // Results-screen MIDI menu: white keys (any octave) act as buttons. Changes wait for C to restart.
@@ -224,7 +224,16 @@ function restart() {
   exitFocusMode();
   const cfg = settings.all();
   const fifths = cfg.keySignature === "random" ? KEYS[Math.floor(Math.random() * KEYS.length)].fifths : cfg.keySignature;
-  const genOpts = { clef: cfg.clef, fifths, accidentals: cfg.accidentals, ledgerLines: cfg.ledgerLines, chords: cfg.chords, maxChordNotes: cfg.maxChordNotes };
+  const genOpts = {
+    clef: cfg.clef,
+    fifths,
+    accidentals: cfg.accidentals,
+    ledgerLines: cfg.ledgerLines,
+    maxLeap: cfg.maxLeap === "any" ? Infinity : cfg.maxLeap,
+    chords: cfg.chords,
+    chordStyle: cfg.chordStyle,
+    maxChordNotes: cfg.maxChordNotes,
+  };
   const supported = cfg.mode !== "attack";
   const engine = supported
     ? new TestEngine({
@@ -236,7 +245,7 @@ function restart() {
         generateMore: cfg.mode === "notes" ? null : (count) => generateItems(count, genOpts),
       })
     : null;
-  test = { cfg, fifths, genOpts, engine };
+  test = { cfg, fifths, genOpts, engine, revealed: new Set() };
   view = null;
 
   els.results.hidden = true;
@@ -363,7 +372,8 @@ function draw() {
   const { engine, genOpts } = test;
   const staffSpace = STAFF_SPACE[s.noteSize];
   const width = els.staff.clientWidth;
-  const capacity = lineCapacity(width / staffSpace, genOpts);
+  const layout = { ...genOpts, noteNames: s.noteNames };
+  const capacity = lineCapacity(width / staffSpace, layout);
   const firstLine = Math.floor(Math.min(engine.index, engine.items.length - 1) / capacity);
 
   els.staff.replaceChildren();
@@ -375,15 +385,28 @@ function draw() {
     const holder = document.createElement("div");
     holder.className = "staff-row";
     els.staff.appendChild(holder);
-    const handle = renderStaff(holder, { ...genOpts, items, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
+    const handle = renderStaff(holder, { ...layout, items, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
     items.forEach((_, k) => handle.setState(k, engine.states[startIndex + k]));
     handle.setCaret(l === 0 ? engine.index - startIndex : -1);
-    lines.push({ handle, startIndex });
+    lines.push({ handle, startIndex, count: items.length });
   }
   const locate = (index) => {
     const line = lines.find((ln) => index >= ln.startIndex && index < ln.startIndex + capacity);
     return line ? { line, k: index - line.startIndex } : null;
   };
+
+  // Memory mode: once the first note of the current line is played, its remaining notes fade out.
+  // A wrong note reveals the note it was meant for, since every note must be played to move on.
+  const applyMemory = () => {
+    if (!test.cfg.memory || !lines.length) return;
+    const { handle, startIndex, count } = lines[0];
+    const hide = engine.index > startIndex;
+    for (let k = 0; k < count; k++) {
+      const index = startIndex + k;
+      if (engine.states[index] === "pending") handle.setHidden(k, hide && !test.revealed.has(index));
+    }
+  };
+  applyMemory();
 
   view = {
     update(prevIndex) {
@@ -393,10 +416,16 @@ function draw() {
       prev?.line.handle.setState(prev.k, engine.states[prevIndex]);
       const cur = locate(engine.index);
       lines[0].handle.setCaret(cur ? cur.k : -1);
+      applyMemory();
     },
     shakeItem(index) {
       const loc = locate(index);
-      loc?.line.handle.shakeItem(loc.k);
+      if (!loc) return;
+      if (test.cfg.memory) {
+        test.revealed.add(index);
+        loc.line.handle.setHidden(loc.k, false);
+      }
+      loc.line.handle.shakeItem(loc.k);
     },
     setBlink(on) {
       lines[0]?.handle.setCaretBlink(on);

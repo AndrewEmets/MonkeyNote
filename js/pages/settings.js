@@ -34,7 +34,10 @@ const SECTIONS = [
       { key: "keySignature", title: "key signature", icon: "key", text: "Key of the generated notes. Random picks a new key every test.", labels: keyLabels, wide: true },
       { key: "accidentals", title: "accidentals", icon: "sharp", text: "Diatonic keeps every note in the key. Chromatic adds sharps, flats and naturals outside it." },
       { key: "ledgerLines", title: "ledger lines", icon: "lines", text: "How many ledger lines notes may use above and below the staff." },
-      { key: "maxChordNotes", title: "max chord notes", icon: "chords", text: "Largest chord when chords are turned on in the test bar." },
+      { key: "maxLeap", title: "max leap", icon: "octave", text: "Largest jump between one note (or chord) and the next. Smaller leaps read more like real melodies.", labels: { 1: "2nd", 2: "3rd", 3: "4th", 4: "5th", 7: "octave" } },
+      { key: "chordStyle", title: "chord style", icon: "chords", text: "Random stacks notes freely. Triads and sevenths are the key's own chords, in root position and every inversion.", labels: { both: "triads + 7ths" } },
+      { key: "maxChordNotes", title: "max chord notes", icon: "chords", text: "Largest random chord when chords are turned on in the test bar. (Triads have 3 notes, sevenths 4.)" },
+      { key: "noteNames", title: "note names", icon: "font", text: "Write each note's name next to it. A helper while you learn to read; turn it off as you improve.", labels: onOff },
     ],
   },
   {

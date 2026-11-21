@@ -1,7 +1,7 @@
 // SVG staff renderer. All geometry is in staff spaces (distance between two staff lines);
 // the SVG viewBox maps staff spaces to pixels.
 import { GLYPHS } from "./data/glyphs.js";
-import { CLEFS, diatonicOf, keyAlter, keySignature, midiOf } from "./music.js";
+import { CLEFS, diatonicOf, keyAlter, keySignature, midiOf, STEP_NAMES } from "./music.js";
 
 const NS = "http://www.w3.org/2000/svg";
 // SMuFL engraving defaults (Bravura), in staff spaces.
@@ -17,6 +17,8 @@ const ACC_GLYPHS = {
   1: "accidentalSharp",
   2: "accidentalDoubleSharp",
 };
+
+const ACC_SIGNS = { "-2": "𝄫", "-1": "♭", 0: "", 1: "♯", 2: "𝄪" };
 
 const r = (v) => Math.round(v * 1000) / 1000;
 
@@ -62,18 +64,19 @@ function headerLayout(geo, fifths) {
   return { brace, lineStart, clefX, keyX, keyStep, accName, itemsStart };
 }
 
-export const slotWidth = (chords) => (chords ? 5.5 : 4.5);
+// Note-name labels sit right of the noteheads, so they need extra room in each slot.
+export const slotWidth = (chords, noteNames) => (chords ? 5.5 : 4.5) + (noteNames ? (chords ? 2 : 1.3) : 0);
 
 /** How many items fit in a line of the given width (in staff spaces). */
-export function lineCapacity(widthUnits, { clef, ledgerLines, fifths, chords }) {
+export function lineCapacity(widthUnits, { clef, ledgerLines, fifths, chords, noteNames }) {
   const head = headerLayout(staffGeometry({ clef, ledgerLines }), fifths);
   const free = widthUnits - head.itemsStart - ACC_ROOM - HEAD_W - 0.5;
-  return Math.max(1, Math.floor(free / slotWidth(chords)) + 1);
+  return Math.max(1, Math.floor(free / slotWidth(chords, noteNames)) + 1);
 }
 
 /**
  * Render a line of items into `container`.
- * opts: { clef, fifths, ledgerLines, chords, items, width (px), staffSpace (px), caretStyle, smoothCaret }
+ * opts: { clef, fifths, ledgerLines, chords, noteNames, items, width (px), staffSpace (px), caretStyle, smoothCaret }
  * Returns a handle to update item states and the caret without re-rendering.
  */
 export function renderStaff(container, opts) {
@@ -81,7 +84,7 @@ export function renderStaff(container, opts) {
   const W = opts.width / s;
   const geo = staffGeometry(opts);
   const head = headerLayout(geo, opts.fifths);
-  const slot = slotWidth(opts.chords);
+  const slot = slotWidth(opts.chords, opts.noteNames);
   const yOf = (staff, d) => geo.tops[staff] + 4 - (d - CLEFS[staff].bottom) / 2;
 
   const svg = el("svg", {
@@ -117,7 +120,7 @@ export function renderStaff(container, opts) {
   const slotLeft = (k) => head.itemsStart + k * slot;
   const itemNodes = opts.items.map((item, k) => {
     const g = el("g", { class: "item pending", "data-index": k, "data-midi": item.notes.map(midiOf).join(" ") }, svg);
-    drawItem(g, item, slotLeft(k) + ACC_ROOM, (d) => yOf(item.staff, d), opts.fifths);
+    drawItem(g, item, slotLeft(k) + ACC_ROOM, (d) => yOf(item.staff, d), opts.fifths, opts.noteNames);
     return g;
   });
 
@@ -132,6 +135,10 @@ export function renderStaff(container, opts) {
     count: opts.items.length,
     setState(k, state) {
       itemNodes[k]?.setAttribute("class", `item ${state}`);
+    },
+    /** Memory mode: hide (fade out) or show an item. */
+    setHidden(k, hidden) {
+      itemNodes[k]?.classList.toggle("hidden", hidden);
     },
     setCaret(k) {
       const item = opts.items[k];
@@ -162,7 +169,7 @@ function drawCaret(g, style, slot, ledgerLines) {
     el("rect", { x: ACC_ROOM - 0.2, y: 4 + ledgerLines + 1.1, width: HEAD_W + 0.4, height: 0.25, rx: 0.1 }, g);
 }
 
-function drawItem(g, item, nx, yOf, fifths) {
+function drawItem(g, item, nx, yOf, fifths, noteNames) {
   const bottom = CLEFS[item.staff].bottom;
   const top = bottom + 8;
   const notes = item.notes.map((p) => ({ p, d: diatonicOf(p) })).sort((a, b) => a.d - b.d);
@@ -197,4 +204,17 @@ function drawItem(g, item, nx, yOf, fifths) {
   }
 
   for (const n of notes) glyph(HEAD, nx + (n.shift ? HEAD_W - 0.05 : 0), yOf(n.d), g, "notehead");
+
+  // Note names (helper): right of the noteheads; a label a second above the previous one steps
+  // further right so the two don't overlap.
+  if (noteNames) {
+    const labelX = nx + HEAD_W * (anyShift ? 2 : 1) + 0.25;
+    let prevLabel = null;
+    for (const n of notes) {
+      const col = prevLabel && n.d - prevLabel.d < 2 && prevLabel.col === 0 ? 1 : 0;
+      const label = el("text", { x: r(labelX + col * 1.1), y: r(yOf(n.d) + 0.33), class: "note-name" }, g);
+      label.textContent = STEP_NAMES[n.p.step] + (ACC_SIGNS[n.p.alter] ?? "");
+      prevLabel = { d: n.d, col };
+    }
+  }
 }
