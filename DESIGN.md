@@ -10,7 +10,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Stack | Vanilla HTML + JS (ES modules), no build step. Small libraries only if unavoidable. |
 | Hosting | GitHub Pages, served from `main` root: https://andrewemets.github.io/MonkeyNote/ |
 | Storage | `localStorage` for settings and stats. Backend (login + stats sync) later; Supabase free tier is the candidate. |
-| Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. |
+| Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |
 | Input | MIDI, computer keyboard (piano layout only), on-screen keyboard (optional). |
 | Sound | Web Audio. Simple synth first, piano samples later. |
@@ -100,5 +100,4 @@ Same long sectioned page with button groups and a search/jump list:
 ## Open details
 
 - Keyboard input range: optional "any octave" leniency for keyboard users?
-- Glyph source for clefs/accidentals: subset of the Bravura font (OFL) vs hand-drawn SVG paths.
 - Exact attack-mode speed curve.
