@@ -4,6 +4,7 @@ import { KEYS } from "../music.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
 import { midiStatus, onMidiChange } from "../midi.js";
+import { midiName, midiRange, PRESETS } from "../midi-range.js";
 import { clearHistory } from "../history.js";
 import { notify } from "../notify.js";
 
@@ -17,6 +18,7 @@ const SECTIONS = [
     icon: "keyboard",
     rows: [
       { custom: midiRow },
+      { custom: midiRangeRow },
       { key: "chordWindow", title: "chord window", icon: "timer", text: "How close together (ms) chord notes must land when they aren't held down together.", labels: { 50: "50ms", 100: "100ms", 150: "150ms", 250: "250ms" } },
       { key: "ignoreOctave", title: "ignore octave", icon: "octave", text: "Accept the right note in any octave. Useful for the computer keyboard, which spans only about two and a half octaves.", labels: { keyboard: "keyboard only", all: "all inputs" } },
       { key: "onScreenKeyboard", title: "on-screen keyboard", icon: "piano", text: "Show a clickable piano under the staff. Works with touch too.", labels: onOff },
@@ -67,11 +69,13 @@ export function mount(container) {
   grid.addEventListener("mouseleave", () => applyTheme(settings.get("theme"), { persist: false }));
   const unsubSettings = settings.subscribe(refresh);
   const unsubMidi = onMidiChange(() => (root.querySelector(".midi-status").textContent = midiStatusText()));
-  unsubscribe = () => (unsubSettings(), unsubMidi());
+  const unsubRange = midiRange.subscribe(() => refreshMidiRange());
+  unsubscribe = () => (unsubSettings(), unsubMidi(), unsubRange());
 }
 
 export function unmount() {
   unsubscribe();
+  midiRange.cancelDetect();
   applyTheme(settings.get("theme"), { persist: false });
   root.remove();
 }
@@ -96,6 +100,56 @@ function midiRow() {
       <div class="setting-text">Any connected MIDI keyboard works automatically. Supported in Chrome, Edge and Firefox (not Safari).</div>
       <div class="setting-value midi-status">${midiStatusText()}</div>
     </div>`;
+}
+
+function midiRangeRow() {
+  return `
+    <div class="setting wide">
+      <div class="setting-title">${icon("piano")}<span>midi keyboard range</span></div>
+      <div class="setting-text">
+        Notes your keyboard doesn't have are accepted in any octave. The range is learned as you play;
+        set it here if your keyboard is small, and reset it when you switch keyboards.
+        <div class="setting-status midi-range-status">${midiRange.describe()}</div>
+      </div>
+      <div class="setting-buttons midi-range-buttons">${midiRangeButtons()}</div>
+    </div>`;
+}
+
+function midiRangeButtons() {
+  const r = midiRange.get();
+  const presets = PRESETS.map((p) => {
+    const active = r?.manual && r.low === p.low && r.high === p.high;
+    return `<button class="button${active ? " active" : ""}" data-range-preset="${p.keys}" title="${midiName(p.low)}–${midiName(p.high)}">${p.keys} keys</button>`;
+  }).join("");
+  const detecting = midiRange.isDetecting();
+  return `${presets}
+    <button class="button${detecting ? " active" : ""}" data-range-action="detect">${detecting ? "cancel" : "detect"}</button>
+    <button class="button" data-range-action="reset">reset</button>`;
+}
+
+function refreshMidiRange(status) {
+  if (!root) return;
+  root.querySelector(".midi-range-status").textContent = status ?? midiRange.describe();
+  root.querySelector(".midi-range-buttons").innerHTML = midiRangeButtons();
+}
+
+function onMidiRangeAction(target) {
+  if (target.dataset.rangePreset) {
+    midiRange.setPreset(Number(target.dataset.rangePreset));
+  } else if (target.dataset.rangeAction === "reset") {
+    midiRange.reset();
+    notify("midi range forgotten; it will be learned again as you play");
+  } else if (midiRange.isDetecting()) {
+    midiRange.cancelDetect();
+    refreshMidiRange();
+  } else {
+    if (!midiStatus().devices.length) return notify("connect a midi keyboard first");
+    midiRange.detect({
+      onStep: (m) => refreshMidiRange(`lowest key: ${midiName(m)}. now press your highest key`),
+      onDone: () => notify(`midi range set: ${midiRange.describe()}`),
+    });
+    refreshMidiRange("press your lowest key");
+  }
 }
 
 function midiStatusText() {
@@ -156,7 +210,8 @@ function dangerSection() {
 function onClick(e) {
   const target = e.target.closest("button");
   if (!target) return;
-  if (target.dataset.key) settings.set(target.dataset.key, JSON.parse(target.dataset.value));
+  if (target.dataset.rangePreset || target.dataset.rangeAction) onMidiRangeAction(target);
+  else if (target.dataset.key) settings.set(target.dataset.key, JSON.parse(target.dataset.value));
   else if (target.dataset.theme) settings.set("theme", target.dataset.theme);
   else if (target.dataset.jump) scrollToSection(target.dataset.jump);
   else if (target.dataset.collapse) target.closest(".settings-section").classList.toggle("collapsed");

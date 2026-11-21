@@ -82,6 +82,21 @@ test("ignore octave for keyboard only", () => {
   assert.equal(e.index, 1);
 });
 
+test("notes outside the MIDI keyboard's range are accepted in any octave", () => {
+  const C6 = P(0, 6);
+  const isOutsideMidiRange = (m) => m < 48 || m > 72; // 25 keys, C3–C5
+  const e = make([{ notes: [C6] }, { notes: [C4] }, { notes: [C6] }], { isOutsideMidiRange });
+  e.noteOn(72, "midi", 0, notHeld); // C5 for C6: out of range, accepted
+  assert.equal(e.states[0], "correct");
+  e.noteOn(72, "midi", 100, notHeld); // C5 for C4: in range, wrong octave
+  assert.equal(e.index, 1);
+  e.noteOn(60, "midi", 200, notHeld);
+  e.noteOn(72, "keyboard", 300, notHeld); // range only applies to MIDI input
+  assert.equal(e.index, 2);
+  e.noteOn(84, "screen", 400, notHeld);
+  assert.equal(e.state, "done");
+});
+
 test("time mode generates more items", () => {
   const e = make([{ notes: [C4] }], { mode: "time", generateMore: (c) => Array.from({ length: c }, () => ({ notes: [C4] })) });
   e.noteOn(60, "midi", 0, notHeld);

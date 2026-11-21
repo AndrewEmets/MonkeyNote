@@ -1,6 +1,7 @@
 // Web MIDI input. Listens to every connected MIDI input and forwards notes to the input hub.
 import { input } from "./input.js";
 import { notify } from "./notify.js";
+import { midiRange } from "./midi-range.js";
 
 let access = null;
 let status = "unsupported"; // unsupported | pending | denied | ready
@@ -22,7 +23,10 @@ const emit = () => listeners.forEach((fn) => fn(midiStatus()));
 function onMessage(e) {
   const [statusByte, note, velocity] = e.data;
   const command = statusByte & 0xf0;
-  if (command === 0x90 && velocity > 0) input.noteOn(note, "midi");
+  if (command === 0x90 && velocity > 0) {
+    input.noteOn(note, "midi");
+    midiRange.observe(note);
+  }
   else if (command === 0x80 || (command === 0x90 && velocity === 0)) input.noteOff(note, "midi");
 }
 

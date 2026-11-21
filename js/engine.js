@@ -11,7 +11,8 @@ export class TestEngine {
   /**
    * opts: {
    *   items, mode: "notes" | "time" | "zen", chordWindow (ms),
-   *   ignoreOctave: "off" | "keyboard" | "all", generateMore(count) -> items
+   *   ignoreOctave: "off" | "keyboard" | "all", generateMore(count) -> items,
+   *   isOutsideMidiRange(midi) -> bool (optional)
    * }
    */
   constructor(opts) {
@@ -47,9 +48,10 @@ export class TestEngine {
 
     const targets = this.current.notes.map(midiOf);
     const lenient = this.opts.ignoreOctave === "all" || (this.opts.ignoreOctave === "keyboard" && source === "keyboard");
-    const key = lenient ? pitchClass : (m) => m;
+    // A note the MIDI keyboard physically lacks is accepted in any octave.
+    const anyOctave = (t) => lenient || (source === "midi" && !!this.opts.isOutsideMidiRange?.(t));
     const a = (this.attempt ??= { hits: new Map(), misses: new Set() });
-    const hit = targets.findIndex((t) => key(t) === key(midi));
+    const hit = targets.findIndex((t) => t === midi || (anyOctave(t) && pitchClass(t) === pitchClass(midi)));
 
     out.correct = hit >= 0;
     this.presses.push({ t: now, midi, correct: out.correct });

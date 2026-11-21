@@ -72,6 +72,27 @@ Toggles (combine with notes / time / attack):
 - **Ignore octave**: off / keyboard only (default) / all inputs. The computer keyboard spans ~2.5 octaves,
   less than a grand staff, so by default it accepts the right note name in any octave.
   The keyboard's octave defaults per clef (Z = C4 treble, C2 bass, C3 grand staff).
+- **MIDI keyboard range**: browsers can't query it, so it is learned from the lowest/highest keys played
+  (trusted once it spans two octaves), or set in settings (25–88 key presets, or detect by pressing the
+  lowest and highest key). Reset forgets it after switching keyboards. MIDI notes outside the range are
+  accepted in any octave. Stored apart from settings (it describes hardware).
+
+## MIDI controls (results screen only)
+
+The results screen is the one place where notes can't start or affect an exercise, so white keys
+(any octave) act as buttons there. A 1 s lockout ignores trailing notes from the exercise.
+Shown only when a MIDI device is connected.
+
+| Key | Action |
+|---|---|
+| C | restart (with any changes below) |
+| D / E / F | toggle chords / memory / ear |
+| G | cycle mode: notes → time → zen |
+| A | cycle length (notes count or seconds) |
+| B | cycle clef: treble → bass → grand staff |
+
+Changes made this way keep the results screen up; C starts the new test. (Mouse clicks on the test bar
+restart immediately, as in MonkeyType.)
 
 ## Results
 
@@ -79,7 +100,7 @@ Toggles (combine with notes / time / attack):
   The first item starts the clock, so it is excluded from speed.
 - **acc**: correct key presses / all key presses. **notes**: first try / needed correction.
 - **consistency**: evenness of time between items (MonkeyType's formula on the coefficient of variation).
-- Speed-over-time chart (npm, raw, error marks) with hover tooltip.
+- Speed-over-time chart (npm, wrong-note marks) with hover tooltip.
 - Missed-notes map: a piano tinted by miss rate per pitch, plus the most-missed list.
 - Personal bests per configuration (mode + length + clef + accidentals + ledger lines + chords), stored locally.
 

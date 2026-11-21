@@ -6,6 +6,7 @@ import { icon } from "../icons.js";
 import { input } from "../input.js";
 import { keyboardInput } from "../keyboard-input.js";
 import { midiStatus, onMidiChange } from "../midi.js";
+import { midiRange } from "../midi-range.js";
 import { createPiano } from "../piano.js";
 import { TestEngine } from "../engine.js";
 import { computeResults, renderResults } from "../results.js";
@@ -35,7 +36,31 @@ const RESTART_KEYS = new Set([
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
 
+// Results-screen MIDI menu: white keys (any octave) act as buttons. Changes wait for C to restart.
+const MENU_LOCKOUT_MS = 1000; // ignore trailing notes from the exercise
+const cycle = (list, value) => list[(list.indexOf(value) + 1) % list.length];
+const onOff = (v) => (v ? "on" : "off");
+const MIDI_MENU = [
+  { pc: 0, name: "C", label: () => "restart", run: () => restart() },
+  { pc: 2, name: "D", label: (s) => `chords ${onOff(s.chords)}`, run: (s) => settings.set("chords", !s.chords) },
+  { pc: 4, name: "E", label: (s) => `memory ${onOff(s.memory)}`, run: (s) => settings.set("memory", !s.memory) },
+  { pc: 5, name: "F", label: (s) => `ear ${onOff(s.ear)}`, run: (s) => settings.set("ear", !s.ear) },
+  { pc: 7, name: "G", label: (s) => `mode: ${s.mode}`, run: (s) => settings.set("mode", cycle(["notes", "time", "zen"], s.mode)) },
+  {
+    pc: 9,
+    name: "A",
+    label: (s) => (MODE_VALUES[s.mode] ? `length: ${s[MODE_VALUES[s.mode][0]]}` : "length: -"),
+    run: (s) => {
+      const [key, values] = MODE_VALUES[s.mode] ?? [];
+      if (key) settings.set(key, cycle(values, s[key]));
+    },
+  },
+  { pc: 11, name: "B", label: (s) => `clef: ${s.clef === "grand" ? "grand staff" : s.clef}`, run: (s) => settings.set("clef", cycle(["treble", "bass", "grand"], s.clef)) },
+];
+
 let root, els, test, view, piano, resizeObserver, cleanups, ticker;
+let resultsShownAt = 0;
+let menuChange = false; // a settings change made from the MIDI menu keeps the results screen up
 
 export function mount(container) {
   root = document.createElement("div");
@@ -48,6 +73,7 @@ export function mount(container) {
       <div class="input-hint"></div>
     </div>
     <div class="results" hidden></div>
+    <div class="midi-menu" hidden></div>
     <div class="piano-wrap"></div>
     <button class="restart-button" aria-label="restart test" title="restart test">${icon("restart")}</button>`;
   container.appendChild(root);
@@ -59,6 +85,7 @@ export function mount(container) {
     staff: root.querySelector(".staff-wrap"),
     hint: root.querySelector(".input-hint"),
     results: root.querySelector(".results"),
+    menu: root.querySelector(".midi-menu"),
     piano: root.querySelector(".piano-wrap"),
   };
 
@@ -77,7 +104,10 @@ export function mount(container) {
   cleanups = [
     () => keyboardInput.detach(),
     input.subscribe(onInput),
-    onMidiChange(renderHint),
+    onMidiChange(() => {
+      renderHint();
+      renderMidiMenu();
+    }),
     keyboardInput.onOctaveChange((octave) => {
       notify(`keyboard: z = C${octave}`, { duration: 1500 });
       renderHint();
@@ -108,9 +138,12 @@ function onSetting(key) {
   if (PIANO_KEYS.has(key)) renderPiano();
   if (RESTART_KEYS.has(key)) {
     renderConfig();
-    restart();
+    if (menuChange) renderMidiMenu();
+    else restart();
   } else if (REDRAW_KEYS.has(key)) draw();
 }
+
+const showingResults = () => !els.results.hidden;
 
 function onKeyDown(e) {
   if (e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -157,7 +190,7 @@ function renderPiano() {
   piano?.destroy();
   piano = null;
   const s = settings.all();
-  els.piano.hidden = !s.onScreenKeyboard;
+  els.piano.hidden = !s.onScreenKeyboard || showingResults();
   if (!s.onScreenKeyboard) return;
   const [low, high] = pianoRange(s.clef, s.ledgerLines);
   piano = createPiano(els.piano, {
@@ -199,6 +232,7 @@ function restart() {
         mode: cfg.mode,
         chordWindow: cfg.chordWindow,
         ignoreOctave: cfg.ignoreOctave,
+        isOutsideMidiRange: (midi) => midiRange.isOutside(midi),
         generateMore: cfg.mode === "notes" ? null : (count) => generateItems(count, genOpts),
       })
     : null;
@@ -206,6 +240,7 @@ function restart() {
   view = null;
 
   els.results.hidden = true;
+  els.menu.hidden = true;
   els.area.hidden = false;
   els.piano.hidden = !cfg.onScreenKeyboard;
   els.meta.textContent = `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`;
@@ -221,8 +256,9 @@ function onInput(ev) {
     return;
   }
   piano?.setPressed(ev.midi, true);
+  if (showingResults()) return onMenuNote(ev);
   const engine = test?.engine;
-  if (!engine || engine.state === "done" || !els.results.hidden) return;
+  if (!engine || engine.state === "done") return;
 
   const before = engine.index;
   const out = engine.noteOn(ev.midi, ev.source, ev.time, input.isHeld);
@@ -265,6 +301,39 @@ function showResults() {
   els.piano.hidden = true;
   els.results.hidden = false;
   renderResults(els.results, r, { cfg, fifths, isPb });
+  resultsShownAt = performance.now();
+  renderMidiMenu();
+}
+
+// ---- results-screen MIDI menu ----
+
+function renderMidiMenu() {
+  const connected = midiStatus().devices.length > 0;
+  els.menu.hidden = !showingResults() || !connected;
+  if (els.menu.hidden) return;
+  const s = settings.all();
+  els.menu.innerHTML = `
+    <div class="midi-menu-title">${icon("plug")}<span>midi controls · play any octave</span></div>
+    <div class="midi-menu-keys">${MIDI_MENU.map(
+      (m) => `<span class="midi-menu-key" data-pc="${m.pc}"><kbd>${m.name}</kbd><span>${m.label(s)}</span></span>`,
+    ).join("")}</div>`;
+}
+
+function onMenuNote(ev) {
+  if (ev.source !== "midi" || performance.now() - resultsShownAt < MENU_LOCKOUT_MS) return;
+  const entry = MIDI_MENU.find((m) => m.pc === ((ev.midi % 12) + 12) % 12);
+  if (!entry) return;
+  if (entry.pc === 0) return entry.run();
+  menuChange = true;
+  try {
+    entry.run(settings.all());
+  } finally {
+    menuChange = false;
+  }
+  const key = els.menu.querySelector(`[data-pc="${entry.pc}"]`);
+  key?.classList.remove("hit");
+  void key?.offsetWidth;
+  key?.classList.add("hit");
 }
 
 function renderCounter() {
