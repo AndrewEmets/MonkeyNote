@@ -4,6 +4,7 @@ import { OPTIONS, pickColors, settings } from "./settings.js";
 import { DEFS, valueLabel } from "./setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "./theme.js";
 import { icon } from "./icons.js";
+import { debug } from "./debug.js";
 
 let overlay = null;
 let input = null;
@@ -33,6 +34,7 @@ function rootMenu() {
       { label: "go to stats", icon: "chart", run: () => (location.hash = "#stats") },
       { label: "go to test", icon: "piano", run: () => (location.hash = "") },
       { label: "theme...", icon: "palette", hint: themeLabel(settings.get("theme")), sub: themeMenu },
+      { label: "toggle debug mode", icon: "bug", hint: debug.on ? "on" : "off", run: () => debug.toggle() },
       ...settingItems,
     ],
   };

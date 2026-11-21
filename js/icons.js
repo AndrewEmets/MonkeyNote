@@ -51,6 +51,8 @@ const ICONS = {
   code: () => stroked(`<path d="m8 6-6 6 6 6M16 6l6 6-6 6"/>`),
   check: () => stroked(`<path d="m5 12 5 5 9-10"/>`),
   volume: () => stroked(`<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>`),
+  bug: () =>
+    stroked(`<rect x="7" y="7" width="10" height="13" rx="5"/><path d="M9 7a3 3 0 0 1 6 0M3 13h4M17 13h4M4 8l3 2M20 8l-3 2M4 19l3-2M20 19l-3-2M12 11v9"/>`),
   chart: () => stroked(`<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>`),
   filter: () => stroked(`<path d="M3 5h18l-7 8v6l-4 2v-8z"/>`),
   download: () => stroked(`<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>`),

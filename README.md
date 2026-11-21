@@ -16,6 +16,12 @@ node tools/serve.js
 
 then open http://localhost:8173.
 
+## Debug mode
+
+Open the page with `?debug` (or run "toggle debug mode" from the command palette) to get cheat keys on
+the test page: <kbd>Enter</kbd> plays the right note or chord, <kbd>Backspace</kbd> a wrong one, and
+<kbd>\</kbd> toggles autoplay (right notes every 0.7 s with the odd mistake). `?debug=0` turns it off.
+
 ## Generated data
 
 - `js/data/themes.js`: `node tools/build-themes.js path/to/monkeytype/frontend/src/ts/constants/themes.ts`

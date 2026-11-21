@@ -823,6 +823,13 @@ body.focus-mode .restart-button {
   padding: 0;
 }
 
+.debug-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--main-color);
+}
+
 /* wrong note: shake (in staff spaces, since px = SVG user units) and flash red */
 svg.staff .item.shake {
   animation: item-shake 0.35s ease-out, item-flash 0.45s;

@@ -15,6 +15,7 @@ import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 import { themeNames } from "../theme.js";
 import { isPaletteOpen } from "../palette.js";
+import { debug } from "../debug.js";
 
 const STAFF_SPACE = { small: 10, medium: 14, large: 18, xl: 22 };
 const MODE_VALUES = {
@@ -125,6 +126,11 @@ export function mount(container) {
       piano?.setLabels(pianoLabels());
     }),
     settings.subscribe(onSetting),
+    debug.subscribe((on) => {
+      if (!on) stopAutoplay();
+      renderHint();
+    }),
+    () => stopAutoplay(),
   ];
 
   renderConfig();
@@ -168,7 +174,49 @@ function onKeyDown(e) {
   } else if (e.key === "Enter" && e.shiftKey && test?.engine?.state === "running" && test.cfg.mode === "zen") {
     e.preventDefault();
     finish(performance.now());
+  } else if (debug.on && !e.ctrlKey && !e.altKey && !e.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+    // Debug cheat keys (none of these are note keys on the computer keyboard).
+    const action = { Enter: () => cheat(true), Backspace: () => cheat(false), Backslash: toggleAutoplay }[e.code === "Backslash" ? "Backslash" : e.key];
+    if (action && !e.repeat) {
+      e.preventDefault();
+      action();
+    }
   }
+}
+
+// ---- debug cheats ----
+
+const AUTOPLAY_MS = 700;
+const AUTOPLAY_WRONG_RATE = 0.15;
+let autoplayTimer = null;
+
+/** Play the current note or chord (right) or a note that isn't in it (wrong), as if from MIDI. */
+function cheat(right) {
+  const engine = test?.engine;
+  const item = engine?.items[engine.index];
+  if (!item || engine.state === "done" || showingResults()) return;
+  const targets = item.notes.map(midiOf);
+  let wrong = targets[0] + 1;
+  while (targets.includes(wrong)) wrong++;
+  const midis = right ? targets : [wrong];
+  for (const m of midis) input.noteOn(m, "debug");
+  setTimeout(() => midis.forEach((m) => input.noteOff(m, "debug")), 120);
+}
+
+/** Autoplay: right notes every AUTOPLAY_MS, with the odd wrong one, until the test ends. */
+function toggleAutoplay() {
+  if (autoplayTimer) return stopAutoplay();
+  autoplayTimer = setInterval(() => {
+    if (showingResults() || !test?.engine || test.engine.state === "done") return stopAutoplay();
+    cheat(Math.random() >= AUTOPLAY_WRONG_RATE);
+  }, AUTOPLAY_MS);
+  renderHint();
+}
+
+function stopAutoplay() {
+  clearInterval(autoplayTimer);
+  autoplayTimer = null;
+  if (root) renderHint();
 }
 
 // ---- config bar ----
@@ -226,6 +274,10 @@ function renderHint() {
   parts.push(`${icon("keyboard")}<span><kbd>z</kbd> = C${keyboardInput.octave} · <kbd>↑</kbd> <kbd>↓</kbd> octave</span>`);
   if (test?.cfg.ear) parts.push(`<button class="text-button replay-button">${icon("ear")}<span><kbd>space</kbd> or pedal to replay</span></button>`);
   if (test?.cfg.mode === "zen") parts.push(`<span><kbd>shift</kbd> + <kbd>enter</kbd> to finish</span>`);
+  if (debug.on)
+    parts.push(
+      `<span class="debug-hint">${icon("bug")}<span>debug: <kbd>enter</kbd> right · <kbd>backspace</kbd> wrong · <kbd>\\</kbd> autoplay ${autoplayTimer ? "on" : "off"}</span></span>`,
+    );
   els.hint.innerHTML = parts.map((p) => `<span class="hint-part">${p}</span>`).join("");
   els.hint.querySelector(".replay-button")?.addEventListener("click", (e) => {
     e.currentTarget.blur();
@@ -479,6 +531,7 @@ function finish(at) {
 }
 
 function showResults() {
+  stopAutoplay();
   stopTimers();
   exitFocusMode();
   root.classList.remove("running");
