@@ -8,7 +8,9 @@ const kogasa = (cv) => 100 * (1 - Math.tanh(cv + cv ** 3 / 3 + cv ** 5 / 5));
 
 /**
  * Compute results from a finished engine.
- * The first item starts the clock, so it is excluded from speed (it took no measurable time).
+ * Every item is eventually played correctly, so speed counts all completed items: wrong notes
+ * cost time (and accuracy) rather than being skipped. The first item starts the clock, so it is
+ * excluded from speed (it took no measurable time).
  */
 export function computeResults(engine, cfg) {
   const start = engine.startTime;
@@ -33,8 +35,7 @@ export function computeResults(engine, cfg) {
     const upTo = timed.filter((r) => r.t <= tEnd);
     series.push({
       second: s,
-      npm: upTo.filter((r) => r.correct).length / elapsed,
-      raw: upTo.length / elapsed,
+      npm: upTo.length / elapsed,
       errors: presses.filter((p) => !p.correct && p.t > tEnd - 1000 && p.t <= tEnd).length,
     });
   }
@@ -42,14 +43,13 @@ export function computeResults(engine, cfg) {
   const pitches = [...engine.pitchStats.entries()].map(([midi, s]) => ({ midi, ...s }));
 
   return {
-    npm: Math.round(timed.filter((r) => r.correct).length / minutes),
-    raw: Math.round(timed.length / minutes),
+    npm: Math.round(timed.length / minutes),
     acc: presses.length ? Math.round((correctPresses / presses.length) * 100) : 0,
     consistency: gaps.length > 1 && mean > 0 ? Math.round(kogasa(sd / mean)) : 0,
     reactionMs: Math.round(mean),
     seconds: Math.round(durationMs / 100) / 10,
-    correctItems: resolved.filter((r) => r.correct).length,
-    errorItems: resolved.filter((r) => !r.correct).length,
+    cleanItems: resolved.filter((r) => r.clean).length,
+    correctedItems: resolved.filter((r) => !r.clean).length,
     series,
     pitches,
   };
@@ -70,22 +70,20 @@ export function renderResults(container, r, { cfg, fifths, isPb }) {
   container.innerHTML = `
     <div class="results-main">
       <div class="big-stats">
-        ${stat(`npm${isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : ""}`, r.npm, "correct notes (or chords) per minute")}
+        ${stat(`npm${isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : ""}`, r.npm, "notes (or chords) played per minute")}
         ${stat("acc", `${r.acc}%`, "correct key presses out of all key presses")}
       </div>
       <div class="chart-box">
         <div class="chart-legend">
           <span><i class="swatch line main"></i>npm</span>
-          <span><i class="swatch line sub"></i>raw</span>
-          <span><i class="swatch cross"></i>errors</span>
+          <span><i class="swatch cross"></i>wrong notes</span>
         </div>
         <div class="chart"></div>
       </div>
     </div>
     <div class="more-stats">
       ${stat("test type", testType(cfg, fifths))}
-      ${stat("raw", r.raw, "all notes (or chords) per minute, including wrong ones")}
-      ${stat("notes", `${r.correctItems}/${r.errorItems}`, "correct / incorrect")}
+      ${stat("notes", `${r.cleanItems}/${r.correctedItems}`, "first try / needed correction")}
       ${stat("consistency", `${r.consistency}%`, "how even your pace was")}
       ${stat("reaction", r.reactionMs ? `${(r.reactionMs / 1000).toFixed(2)}s` : "-", "average time per note (or chord)")}
       ${stat("time", `${r.seconds}s`)}
@@ -130,7 +128,7 @@ function renderChart(el, series) {
   const pad = { left: 36, right: 8, top: 8, bottom: 22 };
   const w = width - pad.left - pad.right;
   const h = height - pad.top - pad.bottom;
-  const yMax = niceMax(Math.max(...series.map((d) => d.raw), ...series.map((d) => d.npm)));
+  const yMax = niceMax(Math.max(...series.map((d) => d.npm)));
   const n = series.length;
   const x = (i) => pad.left + (n === 1 ? w / 2 : (i / (n - 1)) * w);
   const y = (v) => pad.top + h - (v / yMax) * h;
@@ -144,7 +142,6 @@ function renderChart(el, series) {
     <svg width="${width}" height="${height}" role="img" aria-label="notes per minute over time">
       ${yTicks.map((v) => `<line class="grid" x1="${pad.left}" x2="${width - pad.right}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${pad.left - 8}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`).join("")}
       ${xTicks.map((i) => `<text class="axis" x="${x(i)}" y="${height - 4}" text-anchor="middle">${series[i].second}</text>`).join("")}
-      <path class="series sub" d="${path("raw")}"/>
       <path class="series main" d="${path("npm")}"/>
       ${n === 1 ? `<circle class="dot main" cx="${x(0)}" cy="${y(series[0].npm)}" r="4"/>` : ""}
       ${series
@@ -152,7 +149,7 @@ function renderChart(el, series) {
         .join("")}
       <g class="hover" style="display:none">
         <line class="crosshair" y1="${pad.top}" y2="${pad.top + h}"/>
-        <circle class="dot sub" r="4"/><circle class="dot main" r="4"/>
+        <circle class="dot main" r="4"/>
       </g>
       <rect class="hit" x="${pad.left}" y="0" width="${w}" height="${height}" fill="transparent"/>
     </svg>
@@ -168,13 +165,11 @@ function renderChart(el, series) {
     hover.style.display = "";
     hover.querySelector(".crosshair").setAttribute("x1", x(i));
     hover.querySelector(".crosshair").setAttribute("x2", x(i));
-    const [rawDot, npmDot] = hover.querySelectorAll(".dot");
-    rawDot.setAttribute("cx", x(i));
-    rawDot.setAttribute("cy", y(d.raw));
-    npmDot.setAttribute("cx", x(i));
-    npmDot.setAttribute("cy", y(d.npm));
+    const dot = hover.querySelector(".dot");
+    dot.setAttribute("cx", x(i));
+    dot.setAttribute("cy", y(d.npm));
     tooltip.hidden = false;
-    tooltip.innerHTML = `<b>${d.second}s</b><span><i class="swatch line main"></i>npm ${Math.round(d.npm)}</span><span><i class="swatch line sub"></i>raw ${Math.round(d.raw)}</span><span><i class="swatch cross"></i>errors ${d.errors}</span>`;
+    tooltip.innerHTML = `<b>${d.second}s</b><span><i class="swatch line main"></i>npm ${Math.round(d.npm)}</span><span><i class="swatch cross"></i>wrong notes ${d.errors}</span>`;
     const left = Math.min(x(i) + 12, width - tooltip.offsetWidth - 4);
     tooltip.style.left = `${left < x(i) ? x(i) - tooltip.offsetWidth - 12 : left}px`;
   });

@@ -12,8 +12,6 @@ export const OPTIONS = {
   chords: [false, true],
   memory: [false, true],
   ear: [false, true],
-  // behavior
-  stopOnError: [false, true],
   // input
   chordWindow: [50, 100, 150, 250],
   ignoreOctave: ["off", "keyboard", "all"],
@@ -40,7 +38,6 @@ export const DEFAULTS = {
   chords: false,
   memory: false,
   ear: false,
-  stopOnError: false,
   chordWindow: 100,
   ignoreOctave: "keyboard",
   onScreenKeyboard: false,

@@ -66,17 +66,18 @@ Toggles (combine with notes / time / attack):
   - Several keys at once form a chord.
 - **On-screen keyboard**: click / touch; shows computer key labels. Chord
   completes once all its notes are added, in any order.
-- **Wrong notes**: "stop on error" setting — off (mark error, advance) / on (wait for the correct note).
-  For chords with stop on error off, a wrong note resolves the chord as an error once the chord window passes.
+- **Wrong notes**: the note shakes and flashes red, and the caret stays until it is played correctly,
+  so every note is eventually entered. (Unlike MonkeyType, which advances: a typist can backspace,
+  a pianist can't un-play a note.) A note that needed correction is shown in the error-extra color.
 - **Ignore octave**: off / keyboard only (default) / all inputs. The computer keyboard spans ~2.5 octaves,
   less than a grand staff, so by default it accepts the right note name in any octave.
   The keyboard's octave defaults per clef (Z = C4 treble, C2 bass, C3 grand staff).
 
 ## Results
 
-- **npm**: correct items (notes or chords) per minute. **raw**: all items per minute.
+- **npm**: items (notes or chords) completed per minute; wrong notes cost time rather than being skipped.
   The first item starts the clock, so it is excluded from speed.
-- **acc**: correct key presses / all key presses.
+- **acc**: correct key presses / all key presses. **notes**: first try / needed correction.
 - **consistency**: evenness of time between items (MonkeyType's formula on the coefficient of variation).
 - Speed-over-time chart (npm, raw, error marks) with hover tooltip.
 - Missed-notes map: a piano tinted by miss rate per pitch, plus the most-missed list.
@@ -86,7 +87,7 @@ Toggles (combine with notes / time / attack):
 
 Same long sectioned page with button groups and a search/jump list:
 
-- **behavior**: stop on error, quick restart, test length defaults.
+- **behavior**: (reserved) quick restart, test length defaults.
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.
 - **sound**: play sound on press, volume, instrument.
 - **notation**: clef, range, key signature, accidentals, max leap, chord style, note size, show note names (helper).
@@ -97,7 +98,7 @@ Same long sectioned page with button groups and a search/jump list:
 ## Milestones
 
 1. ✅ Skeleton: layout, theme system, settings store, SVG staff renderer, Pages deploy.
-2. ✅ Core loop: notes, time and zen modes, all three inputs, caret and errors, chords, stop on error, results screen.
+2. ✅ Core loop: notes, time and zen modes, all three inputs, caret and wrong-note feedback, chords, results screen.
 3. Options: memory mode, max leap, chord styles, note-name helper.
 4. Sound and ear mode.
 5. Attack mode.

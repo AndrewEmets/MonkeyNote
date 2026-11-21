@@ -12,14 +12,6 @@ const keyLabels = Object.fromEntries([["random", "random"], ...KEYS.map((k) => [
 
 const SECTIONS = [
   {
-    id: "behavior",
-    title: "behavior",
-    icon: "gear",
-    rows: [
-      { key: "stopOnError", title: "stop on error", icon: "stop", text: "Off: a wrong note is marked and you move on. On: the caret waits until you play the right note.", labels: onOff },
-    ],
-  },
-  {
     id: "input",
     title: "input",
     icon: "keyboard",

@@ -30,12 +30,12 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes",
-  "stopOnError", "chordWindow", "ignoreOctave",
+  "chordWindow", "ignoreOctave",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
 
-let root, els, test, view, piano, resizeObserver, cleanups, ticker, chordTimer;
+let root, els, test, view, piano, resizeObserver, cleanups, ticker;
 
 export function mount(container) {
   root = document.createElement("div");
@@ -183,8 +183,7 @@ function renderHint() {
 
 function stopTimers() {
   clearInterval(ticker);
-  clearTimeout(chordTimer);
-  ticker = chordTimer = null;
+  ticker = null;
 }
 
 function restart() {
@@ -198,7 +197,6 @@ function restart() {
     ? new TestEngine({
         items: generateItems(cfg.mode === "notes" ? cfg.notesCount : 100, genOpts),
         mode: cfg.mode,
-        stopOnError: cfg.stopOnError,
         chordWindow: cfg.chordWindow,
         ignoreOctave: cfg.ignoreOctave,
         generateMore: cfg.mode === "notes" ? null : (count) => generateItems(count, genOpts),
@@ -230,9 +228,11 @@ function onInput(ev) {
   const out = engine.noteOn(ev.midi, ev.source, ev.time, input.isHeld);
   if (!out) return;
   if (out.started) onStart();
-  piano?.flash(ev.midi, out.flash);
-  if (out.itemError && !out.resolved) view?.flashItem(before);
-  afterChange(before);
+  piano?.flash(ev.midi, out.correct ? "correct" : "error");
+  if (!out.correct) view?.shakeItem(before);
+  if (out.resolved) view?.update(before);
+  renderCounter();
+  if (engine.state === "done") showResults();
 }
 
 function onStart() {
@@ -244,21 +244,6 @@ function onStart() {
       finish(test.engine.startTime + test.cfg.timeLimit * 1000);
     } else renderCounter();
   }, 100);
-}
-
-/** Update the view after the engine may have moved on from item `before`. */
-function afterChange(before) {
-  const engine = test.engine;
-  clearTimeout(chordTimer);
-  if (engine.attempt?.deadline) {
-    chordTimer = setTimeout(() => {
-      const prev = engine.index;
-      if (engine.check(performance.now(), input.isHeld)) afterChange(prev);
-    }, Math.max(0, engine.attempt.deadline - performance.now()) + 5);
-  }
-  if (engine.index !== before) view?.update(before);
-  renderCounter();
-  if (engine.state === "done") showResults();
 }
 
 function finish(at) {
@@ -273,7 +258,7 @@ function showResults() {
   const { cfg, fifths, engine } = test;
   const r = computeResults(engine, cfg);
   const { isPb } = saveResult(
-    { npm: r.npm, raw: r.raw, acc: r.acc, consistency: r.consistency, seconds: r.seconds, fifths, misses: r.pitches.filter((p) => p.misses).map((p) => [pitchName(p.pitch), p.misses, p.attempts]) },
+    { npm: r.npm, acc: r.acc, consistency: r.consistency, seconds: r.seconds, fifths, misses: r.pitches.filter((p) => p.misses).map((p) => [pitchName(p.pitch), p.misses, p.attempts]) },
     cfg,
   );
   els.area.hidden = true;
@@ -340,9 +325,9 @@ function draw() {
       const cur = locate(engine.index);
       lines[0].handle.setCaret(cur ? cur.k : -1);
     },
-    flashItem(index) {
+    shakeItem(index) {
       const loc = locate(index);
-      loc?.line.handle.flashItem(loc.k);
+      loc?.line.handle.shakeItem(loc.k);
     },
     setBlink(on) {
       lines[0]?.handle.setCaretBlink(on);

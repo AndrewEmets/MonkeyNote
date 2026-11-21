@@ -138,12 +138,13 @@ export function renderStaff(container, opts) {
       caret.style.display = item ? "" : "none";
       if (item) caret.style.transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
     },
-    flashItem(k) {
+    /** Wrong note: shake the item and flash it red; it stays current. */
+    shakeItem(k) {
       const g = itemNodes[k];
       if (!g) return;
-      g.classList.remove("flash");
+      g.classList.remove("shake");
       void g.getBoundingClientRect(); // restart the animation
-      g.classList.add("flash");
+      g.classList.add("shake");
     },
     setCaretBlink(on) {
       caret.classList.toggle("blink", on);

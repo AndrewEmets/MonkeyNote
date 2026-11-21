@@ -1,5 +1,8 @@
 // Test engine: matches played notes against the current item and records what happened.
 // Pure logic (no DOM), so it can be tested in Node. Times are milliseconds (performance.now()).
+//
+// Every item must be played correctly before the caret moves on. A wrong note never advances:
+// it counts against accuracy and the item is marked "corrected" once it is finally played.
 import { midiOf } from "./music.js";
 
 const pitchClass = (m) => ((m % 12) + 12) % 12;
@@ -7,20 +10,20 @@ const pitchClass = (m) => ((m % 12) + 12) % 12;
 export class TestEngine {
   /**
    * opts: {
-   *   items, mode: "notes" | "time" | "zen", stopOnError, chordWindow (ms),
+   *   items, mode: "notes" | "time" | "zen", chordWindow (ms),
    *   ignoreOctave: "off" | "keyboard" | "all", generateMore(count) -> items
    * }
    */
   constructor(opts) {
     this.opts = opts;
     this.items = opts.items;
-    this.states = this.items.map(() => "pending");
+    this.states = this.items.map(() => "pending"); // pending | correct | corrected
     this.state = "idle"; // idle | running | done
     this.index = 0;
     this.startTime = null;
     this.endTime = null;
     this.presses = []; // { t, midi, correct }
-    this.results = []; // { index, t, correct }
+    this.results = []; // { index, t, clean } (clean: no wrong note on the way)
     this.pitchStats = new Map(); // midi -> { pitch, attempts, misses }
     this.attempt = null;
   }
@@ -31,11 +34,11 @@ export class TestEngine {
 
   /**
    * Handle a note-on. isHeld(midi) reports whether a note is still held down.
-   * Returns { flash: "correct" | "error", itemError: bool, resolved: bool, started: bool } or null.
+   * Returns { correct: bool, resolved: bool, started: bool } or null if the test is over.
    */
   noteOn(midi, source, now, isHeld) {
     if (this.state === "done" || !this.current) return null;
-    const out = { flash: null, itemError: false, resolved: false, started: false };
+    const out = { correct: false, resolved: false, started: false };
     if (this.state === "idle") {
       this.state = "running";
       this.startTime = now;
@@ -45,36 +48,16 @@ export class TestEngine {
     const targets = this.current.notes.map(midiOf);
     const lenient = this.opts.ignoreOctave === "all" || (this.opts.ignoreOctave === "keyboard" && source === "keyboard");
     const key = lenient ? pitchClass : (m) => m;
-    const a = (this.attempt ??= { start: now, hits: new Map(), misses: new Set(), hadError: false, deadline: null });
+    const a = (this.attempt ??= { hits: new Map(), misses: new Set() });
     const hit = targets.findIndex((t) => key(t) === key(midi));
 
-    if (hit >= 0) {
-      a.hits.set(hit, { time: now, midi, sticky: source === "screen" });
-      this.presses.push({ t: now, midi, correct: true });
-      out.flash = "correct";
-    } else {
-      this.presses.push({ t: now, midi, correct: false });
-      a.hadError = true;
-      a.misses.add(this.#nearestTarget(targets, midi, a, lenient));
-      out.flash = "error";
-      out.itemError = true;
-      if (!this.opts.stopOnError) {
-        if (targets.length === 1) return { ...out, resolved: this.#resolve(now) };
-        // Chords: give the rest of the gesture time to land before moving on.
-        a.deadline ??= a.start + this.opts.chordWindow;
-      }
-    }
+    out.correct = hit >= 0;
+    this.presses.push({ t: now, midi, correct: out.correct });
+    if (out.correct) a.hits.set(hit, { time: now, midi, sticky: source === "screen" });
+    else a.misses.add(this.#nearestTarget(targets, midi, a, lenient));
 
-    if (this.#satisfied(a, targets.length, now, isHeld)) out.resolved = this.#resolve(now);
+    if (out.correct && this.#satisfied(a, targets.length, now, isHeld)) out.resolved = this.#resolve(now);
     return out;
-  }
-
-  /** Resolve a chord attempt whose window has passed. Returns true if the item resolved. */
-  check(now, isHeld) {
-    const a = this.attempt;
-    if (this.state !== "running" || !a?.deadline || now < a.deadline) return false;
-    this.#satisfied(a, this.current.notes.length, now, isHeld);
-    return this.#resolve(now);
   }
 
   finish(now) {
@@ -84,6 +67,7 @@ export class TestEngine {
     this.attempt = null;
   }
 
+  // A chord is complete when every note is held, was tapped on screen, or landed within the chord window.
   #satisfied(a, count, now, isHeld) {
     for (let i = 0; i < count; i++) {
       const h = a.hits.get(i);
@@ -92,6 +76,7 @@ export class TestEngine {
     return true;
   }
 
+  // A wrong note is charged to the target the player most likely misread: the closest one not yet played.
   #nearestTarget(targets, midi, a, lenient) {
     const distance = (t) => (lenient ? Math.min(pitchClass(t - midi), pitchClass(midi - t)) : Math.abs(t - midi));
     const candidates = targets.map((t, i) => i).filter((i) => !a.hits.has(i));
@@ -101,18 +86,16 @@ export class TestEngine {
 
   #resolve(now) {
     const a = this.attempt;
-    const item = this.current;
-    const correct = !a.hadError;
-    if (!correct) item.notes.forEach((p, i) => !a.hits.has(i) && a.misses.add(i));
-    item.notes.forEach((p, i) => {
+    const clean = a.misses.size === 0;
+    this.current.notes.forEach((p, i) => {
       const m = midiOf(p);
       const stat = this.pitchStats.get(m) ?? { pitch: p, attempts: 0, misses: 0 };
       stat.attempts++;
       if (a.misses.has(i)) stat.misses++;
       this.pitchStats.set(m, stat);
     });
-    this.states[this.index] = correct ? "correct" : "error";
-    this.results.push({ index: this.index, t: now, correct });
+    this.states[this.index] = clean ? "correct" : "corrected";
+    this.results.push({ index: this.index, t: now, clean });
     this.index++;
     this.attempt = null;
 
