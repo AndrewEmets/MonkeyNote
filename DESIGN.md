@@ -23,7 +23,9 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
   `correct` / `error` theme colors; the line scrolls as you progress.
 - **Below test**: restart button; on-screen keyboard when enabled.
 - **Footer**: shortcut hints, theme name (click to open theme picker).
-- **Shortcuts**: Tab restarts; Esc opens the command palette.
+- **Shortcuts**: Tab restarts; Esc or Ctrl/Cmd+Shift+P opens the command palette: search every setting
+  and action, settings open a submenu of their values, themes preview as you move through them.
+  The footer theme name opens the theme list.
 
 ## Modes
 
@@ -118,8 +120,8 @@ Same long sectioned page with button groups and a search/jump list:
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.
 - **sound**: play notes you press (off / keyboard & screen / all), instrument, volume, error sound, ear-mode reference.
 - **notation**: clef, range, key signature, accidentals, max leap, chord style, note size, show note names (helper).
-- **appearance**: caret style, font, smooth line scroll.
-- **theme**: preset grid, custom colors, random theme.
+- **appearance**: note size, staff lines, caret style, smooth caret, flip test colors, font.
+- **theme**: random theme (each test), custom theme (8 color pickers, starting from the current theme), preset grid with search and hover preview. The tab icon takes the theme's colors.
 - **danger zone**: reset settings, clear stats.
 
 ## Milestones
@@ -129,5 +131,5 @@ Same long sectioned page with button groups and a search/jump list:
 3. ✅ Options: memory mode, max leap, chord styles, note-name helper.
 4. ✅ Sound and ear mode.
 5. ✅ Attack mode.
-6. Command palette, full theme set, polish.
+6. ✅ Command palette, custom/random themes, flip colors, themed favicon.
 7. Backend: login and stats sync.

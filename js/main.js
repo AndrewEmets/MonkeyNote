@@ -4,10 +4,11 @@ import { icon } from "./icons.js";
 import { initMidi } from "./midi.js";
 import { input } from "./input.js";
 import { audio } from "./audio.js";
+import { isPaletteOpen, openPalette } from "./palette.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 
-export const VERSION = "0.5.0";
+export const VERSION = "0.6.0";
 
 const pages = { test: testPage, settings: settingsPage };
 let currentPage = null;
@@ -23,13 +24,13 @@ function renderHeader() {
 
 function renderFooter() {
   document.getElementById("bottom").innerHTML = `
-    <div class="keytips"><kbd>tab</kbd> - restart test</div>
+    <div class="keytips"><kbd>tab</kbd> - restart test<br /><kbd>esc</kbd> or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>p</kbd> - command line</div>
     <div class="footer-row">
       <div class="footer-links">
         <a href="https://github.com/AndrewEmets/MonkeyNote" target="_blank" rel="noopener">${icon("code")}<span>github</span></a>
       </div>
       <div class="footer-links">
-        <a href="#settings/theme" class="theme-indicator">${icon("palette")}<span>${themeLabel(settings.get("theme"))}</span></a>
+        <button class="theme-indicator" title="change theme">${icon("palette")}<span>${themeLabel(settings.get("theme"))}</span></button>
         <span class="version">v${VERSION}</span>
       </div>
     </div>`;
@@ -53,16 +54,32 @@ function route() {
 
 applyTheme(settings.get("theme"));
 applyFont(settings.get("fontFamily"));
+document.documentElement.classList.toggle("flip-colors", settings.get("flipColors"));
 audio.setVolume(settings.get("volume"));
 audio.setInstrument(settings.get("instrument"));
 settings.subscribe((key, value) => {
-  if (key === "theme") {
-    applyTheme(value);
+  if (key === "theme" || (key === "customTheme" && settings.get("theme") === "custom")) {
+    applyTheme(settings.get("theme"));
     renderFooter();
   }
+  if (key === "flipColors") document.documentElement.classList.toggle("flip-colors", value);
   if (key === "fontFamily") applyFont(value);
   if (key === "volume") audio.setVolume(value);
   if (key === "instrument") audio.setInstrument(value);
+});
+
+// Command palette: Esc (outside text fields) or Ctrl/Cmd+Shift+P; the footer theme name opens its theme list.
+document.addEventListener("keydown", (e) => {
+  if (isPaletteOpen()) return;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  const shortcut = (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyP";
+  if (shortcut || (e.key === "Escape" && !typing)) {
+    e.preventDefault();
+    openPalette();
+  }
+});
+document.getElementById("bottom").addEventListener("click", (e) => {
+  if (e.target.closest(".theme-indicator")) openPalette("theme");
 });
 
 // Audio may only start after a user gesture.

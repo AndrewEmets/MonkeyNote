@@ -239,6 +239,15 @@ svg.staff .item {
   transition: fill 0.1s, opacity 0.4s;
 }
 
+/* flip test colors: notes to play bright, played notes dimmed */
+.flip-colors svg.staff .item {
+  fill: var(--text-color);
+}
+
+.flip-colors svg.staff .item.correct {
+  fill: var(--sub-color);
+}
+
 /* memory mode */
 svg.staff .item.hidden {
   opacity: 0;
@@ -493,6 +502,38 @@ svg.staff .caret-block.blink {
   color: var(--sub-color);
 }
 
+.custom-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: -1rem 0 2rem;
+}
+
+.custom-colors[hidden] {
+  display: none;
+}
+
+.color-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--sub-alt-color);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.color-field input {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.3rem;
+  background: none;
+  cursor: pointer;
+}
+
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
@@ -571,15 +612,137 @@ kbd {
   gap: 1rem;
 }
 
-.footer-links a {
+.footer-links a,
+.footer-links button {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  color: var(--sub-color);
   transition: color 0.15s;
 }
 
-.footer-links a:hover {
+.footer-links a:hover,
+.footer-links button:hover {
   color: var(--text-color);
+}
+
+/* command palette */
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 5rem 1rem 1rem;
+  background: rgb(0 0 0 / 0.5);
+  animation: palette-in 0.12s;
+}
+
+@keyframes palette-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.palette {
+  width: min(700px, 100%);
+  max-height: min(70vh, 32rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-color);
+  border-radius: var(--radius);
+  box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 1rem;
+  color: var(--sub-color);
+  border-bottom: 2px solid var(--sub-alt-color);
+}
+
+.palette-crumb {
+  color: var(--main-color);
+  white-space: nowrap;
+}
+
+.palette-input input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-color);
+  caret-color: var(--caret-color);
+  font: inherit;
+  padding: 1rem 0;
+}
+
+.palette-input input::placeholder {
+  color: var(--sub-color);
+}
+
+.palette-list {
+  overflow-y: auto;
+  padding: 0.25rem 0;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.palette-item .icon {
+  color: var(--sub-color);
+}
+
+.palette-item.selected {
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+.palette-item.selected .icon,
+.palette-item.selected .palette-hint {
+  color: var(--bg-color);
+}
+
+.palette-check {
+  width: 1em;
+  display: inline-flex;
+}
+
+.palette-check .icon {
+  color: inherit;
+}
+
+.palette-label {
+  flex: 1;
+}
+
+.palette-hint {
+  color: var(--sub-color);
+  font-size: 0.8rem;
+}
+
+.palette-item .theme-bubbles {
+  padding: 0.25rem 0.4rem;
+  border-radius: 1rem;
+}
+
+.palette-empty {
+  padding: 1rem;
+  color: var(--sub-color);
+  font-size: 0.9rem;
 }
 
 /* focus mode: hide chrome while playing (any mouse move brings it back) */

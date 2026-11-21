@@ -13,6 +13,8 @@ import { computeResults, renderResults } from "../results.js";
 import { saveResult } from "../history.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
+import { themeNames } from "../theme.js";
+import { isPaletteOpen } from "../palette.js";
 
 const STAFF_SPACE = { small: 10, medium: 14, large: 18, xl: 22 };
 const MODE_VALUES = {
@@ -103,6 +105,7 @@ export function mount(container) {
     restart();
   });
   document.addEventListener("keydown", onKeyDown);
+  window.addEventListener("monkeynote:restart", restart);
   document.addEventListener("mousemove", exitFocusMode);
   resizeObserver = new ResizeObserver(() => draw());
   resizeObserver.observe(els.staff);
@@ -133,6 +136,7 @@ export function unmount() {
   stopTimers();
   exitFocusMode();
   document.removeEventListener("keydown", onKeyDown);
+  window.removeEventListener("monkeynote:restart", restart);
   document.removeEventListener("mousemove", exitFocusMode);
   resizeObserver.disconnect();
   cleanups.forEach((fn) => fn());
@@ -356,6 +360,10 @@ function drawAttack() {
 function restart() {
   stopTimers();
   exitFocusMode();
+  if (settings.get("randomTheme")) {
+    const names = themeNames().filter((n) => n !== settings.get("theme"));
+    settings.set("theme", names[Math.floor(Math.random() * names.length)]);
+  }
   const cfg = settings.all();
   const fifths = cfg.keySignature === "random" ? KEYS[Math.floor(Math.random() * KEYS.length)].fifths : cfg.keySignature;
   const genOpts = {
@@ -407,6 +415,7 @@ function onInput(ev) {
     return;
   }
   piano?.setPressed(ev.midi, true);
+  if (isPaletteOpen()) return; // notes don't count while the command line is open
   if (showingResults()) return onMenuNote(ev);
   const engine = test?.engine;
   if (!engine || engine.state === "done") return;

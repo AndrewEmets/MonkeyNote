@@ -1,6 +1,6 @@
 // Settings page: sections of settings rows with button groups, theme picker, danger zone.
-import { OPTIONS, settings } from "../settings.js";
-import { KEYS } from "../music.js";
+import { CUSTOM_THEME_KEYS, OPTIONS, pickColors, settings } from "../settings.js";
+import { DEFS, valueLabel } from "../setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
 import { midiStatus, onMidiChange } from "../midi.js";
@@ -9,67 +9,33 @@ import { clearHistory } from "../history.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 
-const onOff = { false: "off", true: "on" };
-const keyLabels = Object.fromEntries([["random", "random"], ...KEYS.map((k) => [k.fifths, k.name])]);
-
+// Rows are setting keys (described in setting-defs.js) or custom renderers.
 const SECTIONS = [
-  {
-    id: "input",
-    title: "input",
-    icon: "keyboard",
-    rows: [
-      { custom: midiRow },
-      { custom: midiRangeRow },
-      { key: "chordWindow", title: "chord window", icon: "timer", text: "How close together (ms) chord notes must land when they aren't held down together.", labels: { 50: "50ms", 100: "100ms", 150: "150ms", 250: "250ms" } },
-      { key: "ignoreOctave", title: "ignore octave", icon: "octave", text: "Accept the right note in any octave. Useful for the computer keyboard, which spans only about two and a half octaves.", labels: { keyboard: "keyboard only", all: "all inputs" } },
-      { key: "onScreenKeyboard", title: "on-screen keyboard", icon: "piano", text: "Show a clickable piano under the staff. Works with touch too.", labels: onOff },
-      { key: "keyLabels", title: "key labels", icon: "keyboard", text: "Show which computer key plays each note on the on-screen keyboard.", labels: onOff },
-    ],
-  },
-  {
-    id: "sound",
-    title: "sound",
-    icon: "volume",
-    rows: [
-      { key: "playOnPress", title: "play notes you press", icon: "volume", text: "Sound for the notes you play. MIDI keyboards with their own speakers don't need it.", labels: { nomidi: "keyboard & screen", all: "all inputs" } },
-      { key: "instrument", title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
-      { key: "volume", title: "volume", icon: "volume", text: "Volume of all sounds.", labels: { 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "100%" } },
-      { key: "errorSound", title: "error sound", icon: "warning", text: "A short thud when you play a wrong note.", labels: onOff },
-      { key: "earReference", title: "ear mode reference", icon: "ear", text: "Show the first note in ear mode, so you have a known pitch to hear the rest against.", labels: onOff },
-    ],
-  },
+  { id: "input", title: "input", icon: "keyboard", rows: [midiRow, midiRangeRow, "chordWindow", "ignoreOctave", "onScreenKeyboard", "keyLabels"] },
+  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", "instrument", "volume", "errorSound", "earReference"] },
   {
     id: "notation",
     title: "notation",
     icon: "note",
-    rows: [
-      { key: "clef", title: "clef", icon: "clef", text: "Staff to read from. Grand staff shows treble and bass together, like piano music.", labels: { grand: "grand staff" } },
-      { key: "keySignature", title: "key signature", icon: "key", text: "Key of the generated notes. Random picks a new key every test.", labels: keyLabels, wide: true },
-      { key: "accidentals", title: "accidentals", icon: "sharp", text: "Diatonic keeps every note in the key. Chromatic adds sharps, flats and naturals outside it." },
-      { key: "ledgerLines", title: "ledger lines", icon: "lines", text: "How many ledger lines notes may use above and below the staff." },
-      { key: "maxLeap", title: "max leap", icon: "octave", text: "Largest jump between one note (or chord) and the next. Smaller leaps read more like real melodies.", labels: { 1: "2nd", 2: "3rd", 3: "4th", 4: "5th", 7: "octave" } },
-      { key: "chordStyle", title: "chord style", icon: "chords", text: "Random stacks notes freely. Triads and sevenths are the key's own chords, in root position and every inversion.", labels: { both: "triads + 7ths" } },
-      { key: "maxChordNotes", title: "max chord notes", icon: "chords", text: "Largest random chord when chords are turned on in the test bar. (Triads have 3 notes, sevenths 4.)" },
-      { key: "noteNames", title: "note names", icon: "font", text: "Write each note's name next to it. A helper while you learn to read; turn it off as you improve.", labels: onOff },
-    ],
+    rows: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "noteNames"],
   },
-  {
-    id: "appearance",
-    title: "appearance",
-    icon: "eye",
-    rows: [
-      { key: "noteSize", title: "note size", icon: "size", text: "Size of the staff and notes." },
-      { key: "staffLines", title: "staff lines", icon: "lines", text: "How many lines of notes to show at once, so you can read ahead." },
-      { key: "caretStyle", title: "caret style", icon: "caret", text: "Shape of the marker on the note to play next.", labels: { line: "|", block: "▮", outline: "▯", underline: "_" } },
-      { key: "smoothCaret", title: "smooth caret", icon: "wave", text: "Animate the caret as it moves between notes.", labels: onOff },
-      { key: "fontFamily", title: "font family", icon: "font", text: "Font used across the interface.", wide: true },
-    ],
-  },
-  { id: "theme", title: "theme", icon: "palette", custom: themeSection },
-  { id: "danger", title: "danger zone", icon: "warning", custom: dangerSection },
+  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "caretStyle", "smoothCaret", "flipColors", "fontFamily"] },
+  { id: "theme", title: "theme", icon: "palette", rows: ["randomTheme", customThemeRow, themeGrid] },
+  { id: "danger", title: "danger zone", icon: "warning", rows: [dangerRows] },
 ];
 
 let root, unsubscribe;
+
+const COLOR_LABELS = {
+  bg: "background",
+  main: "main",
+  caret: "caret",
+  sub: "sub",
+  subAlt: "sub alt",
+  text: "text",
+  error: "error",
+  errorExtra: "error extra",
+};
 
 export function mount(container) {
   root = document.createElement("div");
@@ -94,6 +60,7 @@ export function unmount() {
   midiRange.cancelDetect();
   applyTheme(settings.get("theme"), { persist: false });
   root.remove();
+  root = null;
 }
 
 export function scrollToSection(id) {
@@ -101,7 +68,7 @@ export function scrollToSection(id) {
 }
 
 function sectionHtml(section) {
-  const body = section.custom ? section.custom() : section.rows.map(rowHtml).join("");
+  const body = section.rows.map((row) => (typeof row === "function" ? row() : rowHtml(row))).join("");
   return `
     <section class="settings-section" data-section="${section.id}">
       <button class="section-title" data-collapse="${section.id}">${icon(section.icon)}<span>${section.title}</span>${icon("chevron")}</button>
@@ -176,24 +143,46 @@ function midiStatusText() {
   return devices.length ? `connected: ${devices.join(", ")}` : "no MIDI device connected";
 }
 
-function rowHtml(row) {
-  if (row.custom) return row.custom();
-  const current = settings.get(row.key);
-  const buttons = OPTIONS[row.key]
-    .map((v) => {
-      const label = row.labels?.[v] ?? String(v);
-      return `<button class="button${v === current ? " active" : ""}" data-key="${row.key}" data-value='${JSON.stringify(v)}'>${label}</button>`;
-    })
+function rowHtml(key) {
+  const def = DEFS[key];
+  const current = settings.get(key);
+  const buttons = OPTIONS[key]
+    .map((v) => `<button class="button${v === current ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(v)}'>${valueLabel(key, v)}</button>`)
     .join("");
   return `
-    <div class="setting${row.wide ? " wide" : ""}">
-      <div class="setting-title">${icon(row.icon)}<span>${row.title}</span></div>
-      <div class="setting-text">${row.text}</div>
+    <div class="setting${def.wide ? " wide" : ""}">
+      <div class="setting-title">${icon(def.icon)}<span>${def.title}</span></div>
+      <div class="setting-text">${def.text}</div>
       <div class="setting-buttons">${buttons}</div>
     </div>`;
 }
 
-function themeSection() {
+// ---- theme ----
+
+function customThemeRow() {
+  const isCustom = settings.get("theme") === "custom";
+  const colors = settings.get("customTheme");
+  return `
+    <div class="setting">
+      <div class="setting-title">${icon("palette")}<span>custom theme</span></div>
+      <div class="setting-text">Pick your own colors. It starts from the theme you have now.</div>
+      <div class="setting-buttons"><button class="button${isCustom ? " active" : ""}" data-action="custom-theme">${isCustom ? "using custom theme" : "use custom theme"}</button></div>
+    </div>
+    <div class="custom-colors"${isCustom ? "" : " hidden"}>
+      ${CUSTOM_THEME_KEYS.map(
+        (k) => `<label class="color-field"><input type="color" data-color="${k}" value="${colors[k]}" /><span>${COLOR_LABELS[k]}</span></label>`,
+      ).join("")}
+    </div>`;
+}
+
+function useCustomTheme() {
+  const current = settings.get("theme");
+  if (current === "custom") return;
+  settings.set("customTheme", pickColors(themeColors(current)));
+  settings.set("theme", "custom");
+}
+
+function themeGrid() {
   const current = settings.get("theme");
   const buttons = themeNames()
     .map((name) => {
@@ -209,7 +198,7 @@ function themeSection() {
     <div class="theme-grid">${buttons}</div>`;
 }
 
-function dangerSection() {
+function dangerRows() {
   return `
     <div class="setting">
       <div class="setting-title">${icon("restart")}<span>reset settings</span></div>
@@ -223,6 +212,8 @@ function dangerSection() {
     </div>`;
 }
 
+// ---- events ----
+
 function onClick(e) {
   const target = e.target.closest("button");
   if (!target) return;
@@ -231,6 +222,7 @@ function onClick(e) {
   else if (target.dataset.theme) settings.set("theme", target.dataset.theme);
   else if (target.dataset.jump) scrollToSection(target.dataset.jump);
   else if (target.dataset.collapse) target.closest(".settings-section").classList.toggle("collapsed");
+  else if (target.dataset.action === "custom-theme") useCustomTheme();
   else if (target.dataset.action === "reset" && confirm("Reset all settings to defaults? This cannot be undone.")) settings.reset();
   else if (target.dataset.action === "clear-history" && confirm("Delete all saved results and personal bests? This cannot be undone.")) {
     clearHistory();
@@ -239,9 +231,12 @@ function onClick(e) {
 }
 
 function onInput(e) {
-  if (!e.target.matches(".theme-search input")) return;
-  const q = e.target.value.trim().toLowerCase().replaceAll(" ", "_");
-  for (const btn of root.querySelectorAll(".theme-button")) btn.hidden = !btn.dataset.theme.includes(q);
+  if (e.target.matches(".theme-search input")) {
+    const q = e.target.value.trim().toLowerCase().replaceAll(" ", "_");
+    for (const btn of root.querySelectorAll(".theme-button")) btn.hidden = !btn.dataset.theme.includes(q);
+  } else if (e.target.dataset.color) {
+    settings.set("customTheme", { ...settings.get("customTheme"), [e.target.dataset.color]: e.target.value });
+  }
 }
 
 function onThemeHover(e) {
@@ -250,8 +245,15 @@ function onThemeHover(e) {
 }
 
 function refresh(key, value) {
-  if (key === "theme") {
-    for (const btn of root.querySelectorAll(".theme-button")) btn.classList.toggle("active", btn.dataset.theme === value);
+  if (key === "theme" || key === "customTheme") {
+    const theme = settings.get("theme");
+    for (const btn of root.querySelectorAll(".theme-button")) btn.classList.toggle("active", btn.dataset.theme === theme);
+    const customBtn = root.querySelector('[data-action="custom-theme"]');
+    customBtn.classList.toggle("active", theme === "custom");
+    customBtn.textContent = theme === "custom" ? "using custom theme" : "use custom theme";
+    root.querySelector(".custom-colors").hidden = theme !== "custom";
+    const colors = settings.get("customTheme");
+    for (const input of root.querySelectorAll("[data-color]")) if (input.value !== colors[input.dataset.color]) input.value = colors[input.dataset.color];
     return;
   }
   for (const btn of root.querySelectorAll(`[data-key="${key}"]`)) btn.classList.toggle("active", JSON.parse(btn.dataset.value) === value);

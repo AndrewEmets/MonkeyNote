@@ -1,5 +1,6 @@
 // Theme colors and fonts, applied as CSS custom properties on :root.
 import { THEMES } from "./data/themes.js";
+import { settings } from "./settings.js";
 
 const THEME_VARS_KEY = "monkeynote.themeVars";
 const VARS = {
@@ -38,12 +39,25 @@ function pianoColors(t) {
 }
 
 export const themeNames = () => Object.keys(THEMES);
-export const themeColors = (name) => THEMES[name];
 export const themeLabel = (name) => name.replaceAll("_", " ");
+
+/** Colors of a preset theme, or of the user's custom theme ("custom"). */
+export function themeColors(name) {
+  if (name !== "custom") return THEMES[name];
+  const c = settings.get("customTheme");
+  return { ...c, colorfulError: c.error, colorfulErrorExtra: c.errorExtra };
+}
+
+/** The browser-tab icon, redrawn in the theme's colors (same shape as favicon.svg). */
+function updateFavicon(t) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${t.bg}"/><g fill="${t.main}" transform="translate(0 1.4)"><path d="M11.74 5.6 25.84 3.2 25.84 19.97 23.74 19.97 23.74 7.16 13.84 8.84 13.84 22.47 11.74 22.47Z"/><ellipse cx="9.65" cy="23" rx="4.3" ry="3.1" transform="rotate(-20 10 23)"/><ellipse cx="21.65" cy="20.5" rx="4.3" ry="3.1" transform="rotate(-20 22 20.5)"/></g></svg>`;
+  const link = document.querySelector('link[rel="icon"]');
+  if (link) link.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
 
 /** Apply a theme. persist=false is used for hover previews. */
 export function applyTheme(name, { persist = true } = {}) {
-  const theme = THEMES[name];
+  const theme = themeColors(name);
   if (!theme) return;
   const root = document.documentElement.style;
   const vars = {};
@@ -51,6 +65,7 @@ export function applyTheme(name, { persist = true } = {}) {
   Object.assign(vars, pianoColors(theme));
   for (const [cssVar, value] of Object.entries(vars)) root.setProperty(cssVar, value);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.bg);
+  updateFavicon(theme);
   if (persist) {
     try {
       localStorage.setItem(THEME_VARS_KEY, JSON.stringify(vars));

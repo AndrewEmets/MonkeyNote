@@ -38,8 +38,18 @@ export const OPTIONS = {
   staffLines: [1, 2, 3],
   caretStyle: ["off", "line", "block", "outline", "underline"],
   smoothCaret: [false, true],
+  flipColors: [false, true],
+  randomTheme: [false, true],
   fontFamily: ["Roboto Mono", "Lexend Deca", "Fira Code", "Source Code Pro", "Nunito"],
 };
+
+/** Colors a custom theme defines (the rest are derived). */
+export const CUSTOM_THEME_KEYS = ["bg", "main", "caret", "sub", "subAlt", "text", "error", "errorExtra"];
+/** "#abc" / "#aabbccdd" -> "#aabbcc" (color inputs and custom themes use 6-digit hex). */
+const toHex6 = (hex) => (hex.length === 4 ? `#${[...hex.slice(1)].map((c) => c + c).join("")}` : hex.slice(0, 7));
+export function pickColors(theme) {
+  return Object.fromEntries(CUSTOM_THEME_KEYS.map((k) => [k, toHex6(theme[k])]));
+}
 
 export const DEFAULTS = {
   mode: "notes",
@@ -70,11 +80,19 @@ export const DEFAULTS = {
   staffLines: 2,
   caretStyle: "line",
   smoothCaret: true,
+  flipColors: false,
+  randomTheme: false,
   fontFamily: "Roboto Mono",
   theme: "serika_dark",
+  customTheme: pickColors(THEMES.serika_dark),
 };
 
-const isValid = (key, value) => (key === "theme" ? Object.hasOwn(THEMES, value) : OPTIONS[key]?.includes(value) ?? false);
+const HEX = /^#[0-9a-f]{6}$/i;
+const VALIDATORS = {
+  theme: (v) => v === "custom" || Object.hasOwn(THEMES, v),
+  customTheme: (v) => !!v && typeof v === "object" && CUSTOM_THEME_KEYS.every((k) => HEX.test(v[k])),
+};
+const isValid = (key, value) => (VALIDATORS[key] ? VALIDATORS[key](value) : (OPTIONS[key]?.includes(value) ?? false));
 
 function load() {
   const values = { ...DEFAULTS };
