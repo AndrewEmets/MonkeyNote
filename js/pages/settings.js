@@ -3,11 +3,34 @@ import { OPTIONS, settings } from "../settings.js";
 import { KEYS } from "../music.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
+import { midiStatus, onMidiChange } from "../midi.js";
+import { clearHistory } from "../history.js";
+import { notify } from "../notify.js";
 
 const onOff = { false: "off", true: "on" };
 const keyLabels = Object.fromEntries([["random", "random"], ...KEYS.map((k) => [k.fifths, k.name])]);
 
 const SECTIONS = [
+  {
+    id: "behavior",
+    title: "behavior",
+    icon: "gear",
+    rows: [
+      { key: "stopOnError", title: "stop on error", icon: "stop", text: "Off: a wrong note is marked and you move on. On: the caret waits until you play the right note.", labels: onOff },
+    ],
+  },
+  {
+    id: "input",
+    title: "input",
+    icon: "keyboard",
+    rows: [
+      { custom: midiRow },
+      { key: "chordWindow", title: "chord window", icon: "timer", text: "How close together (ms) chord notes must land when they aren't held down together.", labels: { 50: "50ms", 100: "100ms", 150: "150ms", 250: "250ms" } },
+      { key: "ignoreOctave", title: "ignore octave", icon: "octave", text: "Accept the right note in any octave. Useful for the computer keyboard, which spans only about two and a half octaves.", labels: { keyboard: "keyboard only", all: "all inputs" } },
+      { key: "onScreenKeyboard", title: "on-screen keyboard", icon: "piano", text: "Show a clickable piano under the staff. Works with touch too.", labels: onOff },
+      { key: "keyLabels", title: "key labels", icon: "keyboard", text: "Show which computer key plays each note on the on-screen keyboard.", labels: onOff },
+    ],
+  },
   {
     id: "notation",
     title: "notation",
@@ -26,6 +49,7 @@ const SECTIONS = [
     icon: "eye",
     rows: [
       { key: "noteSize", title: "note size", icon: "size", text: "Size of the staff and notes." },
+      { key: "staffLines", title: "staff lines", icon: "lines", text: "How many lines of notes to show at once, so you can read ahead." },
       { key: "caretStyle", title: "caret style", icon: "caret", text: "Shape of the marker on the note to play next.", labels: { line: "|", block: "▮", outline: "▯", underline: "_" } },
       { key: "smoothCaret", title: "smooth caret", icon: "wave", text: "Animate the caret as it moves between notes.", labels: onOff },
       { key: "fontFamily", title: "font family", icon: "font", text: "Font used across the interface.", wide: true },
@@ -49,7 +73,9 @@ export function mount(container) {
   const grid = root.querySelector(".theme-grid");
   grid.addEventListener("mouseover", onThemeHover);
   grid.addEventListener("mouseleave", () => applyTheme(settings.get("theme"), { persist: false }));
-  unsubscribe = settings.subscribe(refresh);
+  const unsubSettings = settings.subscribe(refresh);
+  const unsubMidi = onMidiChange(() => (root.querySelector(".midi-status").textContent = midiStatusText()));
+  unsubscribe = () => (unsubSettings(), unsubMidi());
 }
 
 export function unmount() {
@@ -71,7 +97,25 @@ function sectionHtml(section) {
     </section>`;
 }
 
+function midiRow() {
+  return `
+    <div class="setting">
+      <div class="setting-title">${icon("plug")}<span>midi</span></div>
+      <div class="setting-text">Any connected MIDI keyboard works automatically. Supported in Chrome, Edge and Firefox (not Safari).</div>
+      <div class="setting-value midi-status">${midiStatusText()}</div>
+    </div>`;
+}
+
+function midiStatusText() {
+  const { status, devices } = midiStatus();
+  if (status === "unsupported") return "this browser has no MIDI support";
+  if (status === "pending") return "waiting for MIDI permission…";
+  if (status === "denied") return "MIDI access was blocked; allow it in the browser's site settings";
+  return devices.length ? `connected: ${devices.join(", ")}` : "no MIDI device connected";
+}
+
 function rowHtml(row) {
+  if (row.custom) return row.custom();
   const current = settings.get(row.key);
   const buttons = OPTIONS[row.key]
     .map((v) => {
@@ -109,6 +153,11 @@ function dangerSection() {
       <div class="setting-title">${icon("restart")}<span>reset settings</span></div>
       <div class="setting-text">Reset all settings to their defaults. Cannot be undone.</div>
       <div class="setting-buttons"><button class="button danger" data-action="reset">reset settings</button></div>
+    </div>
+    <div class="setting">
+      <div class="setting-title">${icon("warning")}<span>clear history</span></div>
+      <div class="setting-text">Delete all saved results and personal bests. Cannot be undone.</div>
+      <div class="setting-buttons"><button class="button danger" data-action="clear-history">clear history</button></div>
     </div>`;
 }
 
@@ -120,6 +169,10 @@ function onClick(e) {
   else if (target.dataset.jump) scrollToSection(target.dataset.jump);
   else if (target.dataset.collapse) target.closest(".settings-section").classList.toggle("collapsed");
   else if (target.dataset.action === "reset" && confirm("Reset all settings to defaults? This cannot be undone.")) settings.reset();
+  else if (target.dataset.action === "clear-history" && confirm("Delete all saved results and personal bests? This cannot be undone.")) {
+    clearHistory();
+    notify("history cleared");
+  }
 }
 
 function onInput(e) {

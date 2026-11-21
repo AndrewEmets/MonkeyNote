@@ -1,7 +1,7 @@
 // SVG staff renderer. All geometry is in staff spaces (distance between two staff lines);
 // the SVG viewBox maps staff spaces to pixels.
 import { GLYPHS } from "./data/glyphs.js";
-import { CLEFS, diatonicOf, keyAlter, keySignature } from "./music.js";
+import { CLEFS, diatonicOf, keyAlter, keySignature, midiOf } from "./music.js";
 
 const NS = "http://www.w3.org/2000/svg";
 // SMuFL engraving defaults (Bravura), in staff spaces.
@@ -116,7 +116,7 @@ export function renderStaff(container, opts) {
   // Items.
   const slotLeft = (k) => head.itemsStart + k * slot;
   const itemNodes = opts.items.map((item, k) => {
-    const g = el("g", { class: "item pending", "data-index": k }, svg);
+    const g = el("g", { class: "item pending", "data-index": k, "data-midi": item.notes.map(midiOf).join(" ") }, svg);
     drawItem(g, item, slotLeft(k) + ACC_ROOM, (d) => yOf(item.staff, d), opts.fifths);
     return g;
   });
@@ -134,9 +134,16 @@ export function renderStaff(container, opts) {
       itemNodes[k]?.setAttribute("class", `item ${state}`);
     },
     setCaret(k) {
-      const item = opts.items[Math.min(k, opts.items.length - 1)];
-      if (!item) return;
-      caret.style.transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
+      const item = opts.items[k];
+      caret.style.display = item ? "" : "none";
+      if (item) caret.style.transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
+    },
+    flashItem(k) {
+      const g = itemNodes[k];
+      if (!g) return;
+      g.classList.remove("flash");
+      void g.getBoundingClientRect(); // restart the animation
+      g.classList.add("flash");
     },
     setCaretBlink(on) {
       caret.classList.toggle("blink", on);

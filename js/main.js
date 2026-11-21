@@ -1,6 +1,7 @@
 import { settings } from "./settings.js";
 import { applyFont, applyTheme, themeLabel } from "./theme.js";
 import { icon } from "./icons.js";
+import { initMidi } from "./midi.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 
@@ -62,3 +63,4 @@ renderHeader();
 renderFooter();
 window.addEventListener("hashchange", route);
 route();
+initMidi();

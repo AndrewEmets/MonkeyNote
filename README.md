@@ -11,7 +11,7 @@ See [DESIGN.md](DESIGN.md) for the plan.
 Plain HTML + JS modules, no build step. Serve the folder with any static server:
 
 ```
-python -m http.server 8173
+node tools/serve.js
 ```
 
 then open http://localhost:8173.

@@ -67,13 +67,20 @@ Toggles (combine with notes / time / attack):
 - **On-screen keyboard**: click / touch; shows computer key labels. Chord
   completes once all its notes are added, in any order.
 - **Wrong notes**: "stop on error" setting — off (mark error, advance) / on (wait for the correct note).
+  For chords with stop on error off, a wrong note resolves the chord as an error once the chord window passes.
+- **Ignore octave**: off / keyboard only (default) / all inputs. The computer keyboard spans ~2.5 octaves,
+  less than a grand staff, so by default it accepts the right note name in any octave.
+  The keyboard's octave defaults per clef (Z = C4 treble, C2 bass, C3 grand staff).
 
 ## Results
 
-- Notes per minute, accuracy, average reaction time per item.
-- Speed-over-time chart.
-- Per-pitch miss map: which notes you misread most.
-- Personal bests per mode configuration (like MonkeyType PBs).
+- **npm**: correct items (notes or chords) per minute. **raw**: all items per minute.
+  The first item starts the clock, so it is excluded from speed.
+- **acc**: correct key presses / all key presses.
+- **consistency**: evenness of time between items (MonkeyType's formula on the coefficient of variation).
+- Speed-over-time chart (npm, raw, error marks) with hover tooltip.
+- Missed-notes map: a piano tinted by miss rate per pitch, plus the most-missed list.
+- Personal bests per configuration (mode + length + clef + accidentals + ledger lines + chords), stored locally.
 
 ## Settings page
 
@@ -89,9 +96,9 @@ Same long sectioned page with button groups and a search/jump list:
 
 ## Milestones
 
-1. Skeleton: layout, theme system, settings store, SVG staff renderer, Pages deploy.
-2. Core loop: notes mode, all three inputs, caret and errors, results screen.
-3. Options: time mode, chords, range and keys, memory, stop on error.
+1. ✅ Skeleton: layout, theme system, settings store, SVG staff renderer, Pages deploy.
+2. ✅ Core loop: notes, time and zen modes, all three inputs, caret and errors, chords, stop on error, results screen.
+3. Options: memory mode, max leap, chord styles, note-name helper.
 4. Sound and ear mode.
 5. Attack mode.
 6. Command palette, full theme set, polish.
@@ -99,5 +106,4 @@ Same long sectioned page with button groups and a search/jump list:
 
 ## Open details
 
-- Keyboard input range: optional "any octave" leniency for keyboard users?
 - Exact attack-mode speed curve.
