@@ -2,10 +2,12 @@ import { settings } from "./settings.js";
 import { applyFont, applyTheme, themeLabel } from "./theme.js";
 import { icon } from "./icons.js";
 import { initMidi } from "./midi.js";
+import { input } from "./input.js";
+import { audio } from "./audio.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.4.0";
 
 const pages = { test: testPage, settings: settingsPage };
 let currentPage = null;
@@ -51,12 +53,27 @@ function route() {
 
 applyTheme(settings.get("theme"));
 applyFont(settings.get("fontFamily"));
+audio.setVolume(settings.get("volume"));
+audio.setInstrument(settings.get("instrument"));
 settings.subscribe((key, value) => {
   if (key === "theme") {
     applyTheme(value);
     renderFooter();
   }
   if (key === "fontFamily") applyFont(value);
+  if (key === "volume") audio.setVolume(value);
+  if (key === "instrument") audio.setInstrument(value);
+});
+
+// Audio may only start after a user gesture.
+for (const type of ["pointerdown", "keydown"]) document.addEventListener(type, () => audio.unlock(), { capture: true });
+
+// Sound for the notes you play (MIDI keyboards often have their own speakers, hence "nomidi").
+input.subscribe((ev) => {
+  if (ev.type === "off") return audio.noteOff(ev.midi);
+  if (ev.type !== "on") return;
+  const mode = settings.get("playOnPress");
+  if (mode === "all" || (mode === "nomidi" && ev.source !== "midi")) audio.noteOn(ev.midi);
 });
 
 renderHeader();

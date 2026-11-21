@@ -7,6 +7,7 @@ import { midiStatus, onMidiChange } from "../midi.js";
 import { midiName, midiRange, PRESETS } from "../midi-range.js";
 import { clearHistory } from "../history.js";
 import { notify } from "../notify.js";
+import { audio } from "../audio.js";
 
 const onOff = { false: "off", true: "on" };
 const keyLabels = Object.fromEntries([["random", "random"], ...KEYS.map((k) => [k.fifths, k.name])]);
@@ -23,6 +24,18 @@ const SECTIONS = [
       { key: "ignoreOctave", title: "ignore octave", icon: "octave", text: "Accept the right note in any octave. Useful for the computer keyboard, which spans only about two and a half octaves.", labels: { keyboard: "keyboard only", all: "all inputs" } },
       { key: "onScreenKeyboard", title: "on-screen keyboard", icon: "piano", text: "Show a clickable piano under the staff. Works with touch too.", labels: onOff },
       { key: "keyLabels", title: "key labels", icon: "keyboard", text: "Show which computer key plays each note on the on-screen keyboard.", labels: onOff },
+    ],
+  },
+  {
+    id: "sound",
+    title: "sound",
+    icon: "volume",
+    rows: [
+      { key: "playOnPress", title: "play notes you press", icon: "volume", text: "Sound for the notes you play. MIDI keyboards with their own speakers don't need it.", labels: { nomidi: "keyboard & screen", all: "all inputs" } },
+      { key: "instrument", title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
+      { key: "volume", title: "volume", icon: "volume", text: "Volume of all sounds.", labels: { 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "100%" } },
+      { key: "errorSound", title: "error sound", icon: "warning", text: "A short thud when you play a wrong note.", labels: onOff },
+      { key: "earReference", title: "ear mode reference", icon: "ear", text: "Show the first note in ear mode, so you have a known pitch to hear the rest against.", labels: onOff },
     ],
   },
   {
@@ -242,4 +255,7 @@ function refresh(key, value) {
     return;
   }
   for (const btn of root.querySelectorAll(`[data-key="${key}"]`)) btn.classList.toggle("active", JSON.parse(btn.dataset.value) === value);
+  // Preview the new tone or volume with a C major chord.
+  if (key === "instrument" || key === "volume") audio.play([60, 64, 67], 1);
+  if (key === "errorSound" && value) audio.error();
 }

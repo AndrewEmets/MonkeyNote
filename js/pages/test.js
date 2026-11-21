@@ -12,6 +12,7 @@ import { TestEngine } from "../engine.js";
 import { computeResults, renderResults } from "../results.js";
 import { saveResult } from "../history.js";
 import { notify } from "../notify.js";
+import { audio } from "../audio.js";
 
 const STAFF_SPACE = { small: 10, medium: 14, large: 18, xl: 22 };
 const MODE_VALUES = { notes: ["notesCount", [10, 25, 50, 100]], time: ["timeLimit", [15, 30, 60, 120]] };
@@ -31,7 +32,7 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave",
+  "chordWindow", "ignoreOctave", "earReference",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -58,7 +59,7 @@ const MIDI_MENU = [
   { pc: 11, name: "B", label: (s) => `clef: ${s.clef === "grand" ? "grand staff" : s.clef}`, run: (s) => settings.set("clef", cycle(["treble", "bass", "grand"], s.clef)) },
 ];
 
-let root, els, test, view, piano, resizeObserver, cleanups, ticker;
+let root, els, test, view, piano, resizeObserver, cleanups, ticker, earTimer;
 let resultsShownAt = 0;
 let menuChange = false; // a settings change made from the MIDI menu keeps the results screen up
 
@@ -149,6 +150,9 @@ function onKeyDown(e) {
   if (e.key === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey) {
     e.preventDefault();
     restart();
+  } else if (e.code === "Space" && !e.repeat && !showingResults() && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+    e.preventDefault();
+    playCurrent();
   } else if (e.key === "Enter" && e.shiftKey && test?.engine?.state === "running" && test.cfg.mode === "zen") {
     e.preventDefault();
     finish(performance.now());
@@ -208,15 +212,38 @@ function renderHint() {
   const parts = [];
   if (status === "ready" && devices.length) parts.push(`${icon("plug")}<span>midi: ${devices.join(", ")}</span>`);
   parts.push(`${icon("keyboard")}<span><kbd>z</kbd> = C${keyboardInput.octave} · <kbd>↑</kbd> <kbd>↓</kbd> octave</span>`);
+  if (test?.cfg.ear) parts.push(`<button class="text-button replay-button">${icon("ear")}<span><kbd>space</kbd> or pedal to replay</span></button>`);
   if (test?.cfg.mode === "zen") parts.push(`<span><kbd>shift</kbd> + <kbd>enter</kbd> to finish</span>`);
   els.hint.innerHTML = parts.map((p) => `<span class="hint-part">${p}</span>`).join("");
+  els.hint.querySelector(".replay-button")?.addEventListener("click", (e) => {
+    e.currentTarget.blur();
+    playCurrent();
+  });
+}
+
+// ---- sound: ear mode and replay ----
+
+/** Play the current note or chord (space, the replay button, or the sustain pedal). */
+function playCurrent() {
+  const engine = test?.engine;
+  const item = engine?.items[engine.index];
+  if (!item || engine.state === "done") return false;
+  audio.unlock();
+  return audio.play(item.notes.map(midiOf));
+}
+
+/** In ear mode, play the current item after a short pause (so it doesn't blur into the last note). */
+function scheduleEarPlay(delay) {
+  clearTimeout(earTimer);
+  if (test?.cfg.ear) earTimer = setTimeout(playCurrent, delay);
 }
 
 // ---- test lifecycle ----
 
 function stopTimers() {
   clearInterval(ticker);
-  ticker = null;
+  clearTimeout(earTimer);
+  ticker = earTimer = null;
 }
 
 function restart() {
@@ -245,21 +272,29 @@ function restart() {
         generateMore: cfg.mode === "notes" ? null : (count) => generateItems(count, genOpts),
       })
     : null;
-  test = { cfg, fifths, genOpts, engine, revealed: new Set() };
+  test = { cfg, fifths, genOpts, engine, revealed: new Set(), wrongs: new Map() };
   view = null;
 
   els.results.hidden = true;
   els.menu.hidden = true;
   els.area.hidden = false;
   els.piano.hidden = !cfg.onScreenKeyboard;
-  els.meta.textContent = `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`;
+  const meta = `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`;
+  els.meta.textContent = cfg.ear ? `${meta} · listen, then play what you hear` : meta;
   root.classList.remove("running");
   renderCounter();
   renderHint();
   draw();
+  scheduleEarPlay(500);
 }
 
+const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
+
 function onInput(ev) {
+  if (ev.type === "control") {
+    if (ev.name === "pedal" && !showingResults()) playCurrent();
+    return;
+  }
   if (ev.type === "off") {
     piano?.setPressed(ev.midi, false);
     return;
@@ -274,10 +309,29 @@ function onInput(ev) {
   if (!out) return;
   if (out.started) onStart();
   piano?.flash(ev.midi, out.correct ? "correct" : "error");
-  if (!out.correct) view?.shakeItem(before);
-  if (out.resolved) view?.update(before);
+  if (!out.correct) onWrong(before);
+  if (out.resolved) {
+    view?.update(before);
+    scheduleEarPlay(350);
+  }
   renderCounter();
   if (engine.state === "done") showResults();
+}
+
+/**
+ * Wrong note: shake the note. A hidden note (memory or ear mode) can't be skipped, so it is
+ * revealed: right away in memory mode, after a few tries in ear mode (which replays it each time).
+ */
+function onWrong(index) {
+  const { cfg } = test;
+  if (settings.get("errorSound")) audio.error();
+  view?.shakeItem(index);
+  if (cfg.ear) {
+    const wrongs = (test.wrongs.get(index) ?? 0) + 1;
+    test.wrongs.set(index, wrongs);
+    if (wrongs >= EAR_REVEAL_AFTER) view?.reveal(index);
+    scheduleEarPlay(450);
+  } else if (cfg.memory) view?.reveal(index);
 }
 
 function onStart() {
@@ -395,18 +449,22 @@ function draw() {
     return line ? { line, k: index - line.startIndex } : null;
   };
 
-  // Memory mode: once the first note of the current line is played, its remaining notes fade out.
-  // A wrong note reveals the note it was meant for, since every note must be played to move on.
-  const applyMemory = () => {
-    if (!test.cfg.memory || !lines.length) return;
-    const { handle, startIndex, count } = lines[0];
-    const hide = engine.index > startIndex;
-    for (let k = 0; k < count; k++) {
-      const index = startIndex + k;
-      if (engine.states[index] === "pending") handle.setHidden(k, hide && !test.revealed.has(index));
-    }
+  // Hidden notes. Ear mode: every unplayed note is hidden (except the first, as a pitch reference,
+  // if enabled). Memory mode: once the first note of the current line is played, the rest of that
+  // line fades out. Notes revealed after wrong tries (see onWrong) stay visible.
+  const applyHiding = () => {
+    const { memory, ear, earReference } = test.cfg;
+    if (!memory && !ear) return;
+    lines.forEach(({ handle, startIndex, count }, l) => {
+      for (let k = 0; k < count; k++) {
+        const index = startIndex + k;
+        if (engine.states[index] !== "pending") continue;
+        const hide = ear ? !(earReference && index === 0) : l === 0 && engine.index > startIndex;
+        handle.setHidden(k, hide && !test.revealed.has(index));
+      }
+    });
   };
-  applyMemory();
+  applyHiding();
 
   view = {
     update(prevIndex) {
@@ -416,16 +474,16 @@ function draw() {
       prev?.line.handle.setState(prev.k, engine.states[prevIndex]);
       const cur = locate(engine.index);
       lines[0].handle.setCaret(cur ? cur.k : -1);
-      applyMemory();
+      applyHiding();
     },
     shakeItem(index) {
       const loc = locate(index);
-      if (!loc) return;
-      if (test.cfg.memory) {
-        test.revealed.add(index);
-        loc.line.handle.setHidden(loc.k, false);
-      }
-      loc.line.handle.shakeItem(loc.k);
+      loc?.line.handle.shakeItem(loc.k);
+    },
+    reveal(index) {
+      test.revealed.add(index);
+      const loc = locate(index);
+      loc?.line.handle.setHidden(loc.k, false);
     },
     setBlink(on) {
       lines[0]?.handle.setCaretBlink(on);

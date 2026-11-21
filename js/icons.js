@@ -50,6 +50,7 @@ const ICONS = {
   chevron: () => stroked(`<path d="m6 9 6 6 6-6"/>`),
   code: () => stroked(`<path d="m8 6-6 6 6 6M16 6l6 6-6 6"/>`),
   check: () => stroked(`<path d="m5 12 5 5 9-10"/>`),
+  volume: () => stroked(`<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>`),
   crown: () => stroked(`<path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>`),
   keyboard: () =>
     stroked(`<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M8 16h8"/>`),

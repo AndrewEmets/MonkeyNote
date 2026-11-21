@@ -604,9 +604,26 @@ body.focus-mode .restart-button {
   gap: 0.4rem;
 }
 
+.input-hint .text-button {
+  padding: 0;
+}
+
 /* wrong note: shake (in staff spaces, since px = SVG user units) and flash red */
 svg.staff .item.shake {
   animation: item-shake 0.35s ease-out, item-flash 0.45s;
+}
+
+/* the caret's position lives on its group transform, so the shake runs on the shape inside */
+svg.staff .caret.shake > * {
+  animation: item-shake 0.35s ease-out, caret-error 0.45s;
+}
+
+@keyframes caret-error {
+  0%,
+  65% {
+    fill: var(--error-color);
+    stroke: var(--error-color);
+  }
 }
 
 @keyframes item-shake {

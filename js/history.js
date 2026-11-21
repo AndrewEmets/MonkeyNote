@@ -22,7 +22,8 @@ function write(key, value) {
 /** Personal bests are tracked per test configuration. */
 export function configKey(cfg) {
   const value = cfg.mode === "notes" ? cfg.notesCount : cfg.mode === "time" ? cfg.timeLimit : "";
-  return [cfg.mode, value, cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, cfg.chords ? `chords${cfg.maxChordNotes}` : "single"].join("|");
+  const chords = cfg.chords ? (cfg.chordStyle === "random" ? `chords${cfg.maxChordNotes}` : cfg.chordStyle) : "single";
+  return [cfg.mode, value, cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, cfg.memory && "memory", cfg.ear && "ear"].filter(Boolean).join("|");
 }
 
 /** Save a result; returns { isPb, previousPb }. */

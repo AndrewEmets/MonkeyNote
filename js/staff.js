@@ -149,9 +149,10 @@ export function renderStaff(container, opts) {
     shakeItem(k) {
       const g = itemNodes[k];
       if (!g) return;
-      g.classList.remove("shake");
-      void g.getBoundingClientRect(); // restart the animation
-      g.classList.add("shake");
+      // The caret flashes too, so a wrong note shows even when the note itself is hidden.
+      for (const node of [g, caret]) node.classList.remove("shake");
+      void g.getBoundingClientRect(); // restart the animations
+      for (const node of [g, caret]) node.classList.add("shake");
     },
     setCaretBlink(on) {
       caret.classList.toggle("blink", on);

@@ -13,7 +13,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |
 | Input | MIDI, computer keyboard (piano layout only), on-screen keyboard (optional). |
-| Sound | Web Audio. Simple synth first, piano samples later. |
+| Sound | Web Audio synth, no samples: an additive "piano" (decaying, slightly stretched harmonics) and a soft sine voice. Notes you press are played for keyboard/screen input by default (MIDI keyboards often have speakers). Optional wrong-note thud. Samples may come later. |
 
 ## Layout (mirrors MonkeyType)
 
@@ -41,8 +41,10 @@ Toggles (combine with notes / time / attack):
 - **memory**: once the first note of the current line is played, the rest of that line fades out
   (the next line stays visible, so you can memorize it ahead). A wrong note reveals the note it was
   meant for, since every note has to be played to move on.
-- **ear**: notes are played as audio, staff hidden; replay key. First note shown
-  as a pitch reference by default (setting).
+- **ear**: each note (or chord) is played as audio and stays hidden on the staff until you play it.
+  The first note is shown as a pitch reference (setting). Replay with space, the replay button,
+  or the MIDI sustain pedal. A wrong note replays the target; after 3 wrong tries the note is shown.
+  The caret flashes red on wrong notes, so feedback shows even for hidden notes.
 
 ## Note generation
 
@@ -114,7 +116,7 @@ Same long sectioned page with button groups and a search/jump list:
 
 - **behavior**: (reserved) quick restart, test length defaults.
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.
-- **sound**: play sound on press, volume, instrument.
+- **sound**: play notes you press (off / keyboard & screen / all), instrument, volume, error sound, ear-mode reference.
 - **notation**: clef, range, key signature, accidentals, max leap, chord style, note size, show note names (helper).
 - **appearance**: caret style, font, smooth line scroll.
 - **theme**: preset grid, custom colors, random theme.
@@ -125,7 +127,7 @@ Same long sectioned page with button groups and a search/jump list:
 1. ✅ Skeleton: layout, theme system, settings store, SVG staff renderer, Pages deploy.
 2. ✅ Core loop: notes, time and zen modes, all three inputs, caret and wrong-note feedback, chords, results screen.
 3. ✅ Options: memory mode, max leap, chord styles, note-name helper.
-4. Sound and ear mode.
+4. ✅ Sound and ear mode.
 5. Attack mode.
 6. Command palette, full theme set, polish.
 7. Backend: login and stats sync.

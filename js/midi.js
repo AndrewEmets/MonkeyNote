@@ -20,14 +20,23 @@ export function onMidiChange(fn) {
 
 const emit = () => listeners.forEach((fn) => fn(midiStatus()));
 
+const SUSTAIN_CC = 64;
+let pedalDown = false;
+
 function onMessage(e) {
-  const [statusByte, note, velocity] = e.data;
+  const [statusByte, data1, data2] = e.data;
   const command = statusByte & 0xf0;
-  if (command === 0x90 && velocity > 0) {
-    input.noteOn(note, "midi");
-    midiRange.observe(note);
+  if (command === 0x90 && data2 > 0) {
+    input.noteOn(data1, "midi");
+    midiRange.observe(data1);
+  } else if (command === 0x80 || (command === 0x90 && data2 === 0)) {
+    input.noteOff(data1, "midi");
+  } else if (command === 0xb0 && data1 === SUSTAIN_CC) {
+    // Sustain pedal: report presses only (value crossing the halfway point).
+    const down = data2 >= 64;
+    if (down && !pedalDown) input.control("pedal", "midi");
+    pedalDown = down;
   }
-  else if (command === 0x80 || (command === 0x90 && velocity === 0)) input.noteOff(note, "midi");
 }
 
 function bindInputs() {
