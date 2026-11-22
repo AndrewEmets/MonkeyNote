@@ -70,7 +70,7 @@ const stat = (label, value, title = "") =>
   `<div class="stat"${title ? ` title="${title}"` : ""}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
 
 /** Render the results screen into `container`. */
-export function renderResults(container, r, { cfg, fifths, isPb, note = "" }) {
+export function renderResults(container, r, { cfg, fifths, isPb, rank = null, note = "" }) {
   const misses = r.pitches.filter((p) => p.misses).sort((a, b) => b.misses / b.attempts - a.misses / a.attempts || b.misses - a.misses);
   const crown = isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : "";
   const attack = cfg.mode === "attack";
@@ -97,7 +97,7 @@ export function renderResults(container, r, { cfg, fifths, isPb, note = "" }) {
       </div>
     </div>
     <div class="more-stats">
-      ${stat("test type", testType(cfg, fifths))}
+      ${stat("test type", `${rank?.ranked ? `ranked · ${rank.level.id}` : "practice"}<br>${testType(cfg, fifths)}`, rank && !rank.ranked ? rank.reason : "")}
       ${modeStats}
       ${stat("notes", `${r.cleanItems}/${r.correctedItems}`, "first try / needed correction")}
       ${stat("consistency", `${r.consistency}%`, "how even your pace was")}

@@ -1,7 +1,7 @@
 import { settings } from "./settings.js";
 import { applyFont, applyTheme, themeLabel } from "./theme.js";
 import { icon } from "./icons.js";
-import { initMidi, midiOut, onMidiChange } from "./midi.js";
+import { initMidi, keyLights, midiOut, onMidiChange } from "./midi.js";
 import { input } from "./input.js";
 import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
@@ -9,7 +9,7 @@ import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.9.0";
+export const VERSION = "0.10.0";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
@@ -58,6 +58,8 @@ applyTheme(settings.get("theme"));
 applyFont(settings.get("fontFamily"));
 document.documentElement.classList.toggle("flip-colors", settings.get("flipColors"));
 audio.setVolume(settings.get("volume"));
+midiOut.setVolume(settings.get("volume"));
+keyLights.setChannel(settings.get("keyLightChannel"));
 audio.setInstrument(settings.get("instrument"));
 settings.subscribe((key, value) => {
   if (key === "theme" || (key === "customTheme" && settings.get("theme") === "custom")) {
@@ -66,9 +68,13 @@ settings.subscribe((key, value) => {
   }
   if (key === "flipColors") document.documentElement.classList.toggle("flip-colors", value);
   if (key === "fontFamily") applyFont(value);
-  if (key === "volume") audio.setVolume(value);
+  if (key === "volume") {
+    audio.setVolume(value);
+    midiOut.setVolume(value);
+  }
   if (key === "instrument") audio.setInstrument(value);
   if (key === "soundOutput") updateSoundOutput();
+  if (key === "keyLightChannel") keyLights.setChannel(value);
 });
 
 // Command palette: Esc (outside text fields) or Ctrl/Cmd+Shift+P; the footer theme name opens its theme list.

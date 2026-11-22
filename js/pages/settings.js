@@ -12,8 +12,8 @@ import { audio } from "../audio.js";
 
 // Rows are setting keys (described in setting-defs.js) or custom renderers.
 const SECTIONS = [
-  { id: "input", title: "input", icon: "keyboard", rows: [midiRow, midiRangeRow, "chordWindow", "ignoreOctave", "onScreenKeyboard", "keyLabels"] },
-  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", soundOutputRow, "instrument", "volume", "errorSound", "earReference"] },
+  { id: "input", title: "input", icon: "keyboard", rows: [midiRow, midiRangeRow, "keyLights", "keyLightChannel", "chordWindow", "ignoreOctave", "onScreenKeyboard", "keyLabels"] },
+  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", soundOutputRow, "instrument", volumeRow, "errorSound", "earReference"] },
   {
     id: "notation",
     title: "notation",
@@ -147,6 +147,28 @@ function midiStatusText() {
   if (status === "pending") return "waiting for MIDI permission…";
   if (status === "denied") return "MIDI access was blocked; allow it in the browser's site settings";
   return devices.length ? `connected: ${devices.join(", ")}` : "no MIDI device connected";
+}
+
+/** Volume as a slider snapping to 0, 25, 50, 75, 100%. */
+function volumeRow() {
+  const v = settings.get("volume");
+  return `
+    <div class="setting">
+      <div class="setting-title">${icon("volume")}<span>volume</span></div>
+      <div class="setting-text">${DEFS.volume.text}</div>
+      <div class="setting-slider">
+        <input type="range" min="0" max="4" step="1" value="${v * 4}" data-volume aria-label="volume" style="--pct:${v * 100}%" />
+        <span class="slider-value">${Math.round(v * 100)}%</span>
+      </div>
+    </div>`;
+}
+
+function syncVolumeSlider() {
+  const v = settings.get("volume");
+  const slider = root.querySelector("[data-volume]");
+  slider.value = v * 4;
+  slider.style.setProperty("--pct", `${v * 100}%`);
+  root.querySelector(".slider-value").textContent = `${Math.round(v * 100)}%`;
 }
 
 /** Sound output, with which MIDI output will be used (or why it can't be). */
@@ -300,6 +322,7 @@ function filterSettings(query) {
 
 function onInput(e) {
   if (e.target.matches(".settings-search input")) filterSettings(e.target.value);
+  else if (e.target.dataset.volume !== undefined) settings.set("volume", Number(e.target.value) / 4);
   else if (e.target.matches(".theme-search input")) {
     const q = e.target.value.trim().toLowerCase().replaceAll(" ", "_");
     for (const btn of root.querySelectorAll(".theme-button")) btn.hidden = !btn.dataset.theme.includes(q);
@@ -327,6 +350,7 @@ function refresh(key, value) {
   }
   for (const btn of root.querySelectorAll(`[data-key="${key}"]`)) btn.classList.toggle("active", JSON.parse(btn.dataset.value) === value);
   if (key === "soundOutput") root.querySelector(".sound-output-status").textContent = soundOutputStatus();
+  if (key === "volume") syncVolumeSlider();
   // Preview the new tone or volume with a C major chord.
   if (key === "instrument" || key === "volume" || key === "soundOutput") audio.play([60, 64, 67], 1);
   if (key === "errorSound" && value) audio.error();

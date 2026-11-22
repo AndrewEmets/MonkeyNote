@@ -1,6 +1,7 @@
 // Local result history, activity counters and personal bests (localStorage only; no backend).
 const RESULTS_KEY = "monkeynote.results";
-const PBS_KEY = "monkeynote.pbs";
+// Personal bests per ranked level (or "practice") + mode + length. (The older per-combination store, "monkeynote.pbs", is no longer used.)
+const PBS_KEY = "monkeynote.bests";
 const STATS_KEY = "monkeynote.stats";
 const MAX_RESULTS = 5000;
 
@@ -30,8 +31,11 @@ export function notationKey(cfg) {
   return [cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, memory && "memory", cfg.ear && "ear"].filter(Boolean).join("|");
 }
 
-/** Personal bests are tracked per test configuration: mode, length and notation. */
+/** A test configuration: mode, length and notation (used for pace-caret averages and the stats filter). */
 export const configKey = (cfg) => [cfg.mode, modeValue(cfg) ?? "", notationKey(cfg)].join("|");
+
+/** Where a result's personal best is kept: its ranked level, or "practice" for everything else. */
+export const bestKey = (cfg, rank) => [rank?.ranked ? rank.level.id : "practice", cfg.mode, modeValue(cfg) ?? ""].join("|");
 
 // ---- activity counters ----
 
@@ -63,12 +67,14 @@ export const loadPbs = () => read(PBS_KEY, {});
 
 /**
  * Save a finished test; returns { isPb, previousPb }. Attack mode ranks by score, the rest by npm.
+ * rank: rankStatus() from levels.js; bests are kept per ranked level, or under "practice".
  * result: { npm, acc, consistency, seconds, notes, fifths, pitches: [[midi, attempts, misses]], score?, peakNpm? }
  */
-export function saveResult(result, cfg) {
+export function saveResult(result, cfg, rank = null) {
   const entry = {
     date: Date.now(),
     config: configKey(cfg),
+    level: rank?.ranked ? rank.level.id : null,
     notation: notationKey(cfg),
     mode: cfg.mode,
     value: modeValue(cfg),
@@ -90,10 +96,11 @@ export function saveResult(result, cfg) {
 
   const metric = cfg.mode === "attack" ? "score" : "npm";
   const pbs = read(PBS_KEY, {});
-  const previous = pbs[entry.config];
+  const key = bestKey(cfg, rank);
+  const previous = pbs[key];
   const isPb = result[metric] > 0 && (!previous || result[metric] > (previous[metric] ?? 0));
   if (isPb) {
-    pbs[entry.config] = { [metric]: result[metric], acc: result.acc, date: entry.date };
+    pbs[key] = { [metric]: result[metric], acc: result.acc, date: entry.date };
     write(PBS_KEY, pbs);
   }
   return { isPb, previousPb: previous?.[metric] ?? null };

@@ -20,6 +20,19 @@ export const DEFS = {
   onScreenKeyboard: { title: "on-screen keyboard", icon: "piano", text: "Show a clickable piano under the staff. Works with touch too.", labels: onOff },
   keyLabels: { title: "key labels", icon: "keyboard", text: "Show which computer key plays each note on the on-screen keyboard.", labels: onOff },
 
+  keyLights: {
+    title: "key lights",
+    icon: "bulb",
+    text: "On keyboards with lit keys: light the keys of the current note, or only after a wrong note. Lit-key tests count as practice. Casio (e.g. LK-S250): turn on MIDI IN Navigate in the keyboard's FUNCTION menu.",
+    labels: { current: "current note", mistake: "after a mistake" },
+  },
+  keyLightChannel: {
+    title: "key light channel",
+    icon: "plug",
+    text: "MIDI channel the keyboard lights keys from. Casio: 4 (right hand) or 3 (left hand) by default.",
+    wide: true,
+  },
+
   // sound
   playOnPress: { title: "play notes you press", icon: "volume", text: "Sound for the notes you play. MIDI keyboards with their own speakers don't need it.", labels: { nomidi: "keyboard & screen", all: "all inputs" } },
   soundOutput: {
@@ -29,7 +42,7 @@ export const DEFS = {
     labels: { browser: "browser", midi: "midi keyboard" },
   },
   instrument: { title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
-  volume: { title: "volume", icon: "volume", text: "Volume of all sounds.", labels: { 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "100%" } },
+  volume: { title: "volume", icon: "volume", text: "Volume of all sounds, including notes played on the MIDI keyboard.", labels: { 0: "0%", 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "100%" } },
   errorSound: { title: "error sound", icon: "warning", text: "A short thud when you play a wrong note.", labels: onOff },
   earReference: { title: "ear mode reference", icon: "ear", text: "Show the first note in ear mode, so you have a known pitch to hear the rest against.", labels: onOff },
 
@@ -38,8 +51,8 @@ export const DEFS = {
   keySignature: {
     title: "key signature",
     icon: "key",
-    text: "Key of the generated notes. Random picks a new key every test.",
-    labels: Object.fromEntries([["random", "random"], ...KEYS.map((k) => [k.fifths, k.name])]),
+    text: "Key of the generated notes. Random picks a new key every test (\"≤2♯/♭\" only from keys with up to two sharps or flats).",
+    labels: Object.fromEntries([["random", "random"], ["random2", "random ≤2♯/♭"], ...KEYS.map((k) => [k.fifths, k.name])]),
     wide: true,
   },
   accidentals: { title: "accidentals", icon: "sharp", text: "Diatonic keeps every note in the key. Chromatic adds sharps, flats and naturals outside it." },

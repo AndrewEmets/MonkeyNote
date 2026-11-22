@@ -125,6 +125,29 @@ restart immediately, as in MonkeyType.)
 - Missed-notes map: a piano tinted by miss rate per pitch, plus the most-missed list.
 - Personal bests per configuration (mode + length + clef + accidentals + ledger lines + chords), stored locally.
 
+## Ranked levels
+
+Fixed notation settings everyone competes on (bests are local for now; a leaderboard could use the same levels).
+Picked from the first dropdown above the staff; a crown marks a ranked setup.
+
+| Level | Settings |
+|---|---|
+| beginner | treble, C major, no ledger lines, single notes, leaps up to a 3rd |
+| intermediate | grand staff, random key with up to 2 sharps/flats, 2 ledger lines, single notes, leaps up to a 5th |
+| advanced | grand staff, any key, chromatic, 3 ledger lines, chords (random, max 3, even density) |
+| expert | grand staff, any key, chromatic, 4 ledger lines, any leap, chords (random, max 4, dense) |
+
+A test is ranked when its settings match a level, its length is notes 16/32 or time 30/60, notes are read
+normally (not memory or ear) and no key-light hints were used. Everything else is **practice**. Personal
+bests are kept per level + mode + length, and one set for practice. All results stay in the history.
+
+## Key lights
+
+For keyboards that light keys for notes received on a guide channel (Casio "MIDI IN Navigate": channel 4
+right hand, 3 left hand by default). Off / light the current note / light it only after a wrong note.
+Notes go out at velocity 1 on the chosen channel. Hinted tests count as practice. Brands with proprietary
+light protocols (e.g. ROLI/Lumi SysEx) aren't covered.
+
 ## Stats page
 
 Modeled on MonkeyType's account page, all from local data:

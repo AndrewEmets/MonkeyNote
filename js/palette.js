@@ -133,7 +133,8 @@ export function askNumber({ title, value, min, max }) {
     overlay.className = "palette-backdrop";
     overlay.innerHTML = `
       <form class="palette palette-number" role="dialog" aria-label="${title}">
-        <div class="palette-input"><span class="palette-crumb">${title}:</span><input type="number" min="${min}" max="${max}" step="1" value="${value}" aria-label="${title}" /></div>
+        <div class="palette-input"><span class="palette-crumb">${title}:</span><input type="number" min="${min}" max="${max}" step="1" value="${value}" aria-label="${title}" />
+          <span class="stepper"><button type="button" class="step" data-step="-1" aria-label="decrease">${icon("minus")}</button><button type="button" class="step" data-step="1" aria-label="increase">${icon("plus")}</button></span></div>
         <div class="palette-empty">${min}–${max} · enter to apply · esc to cancel</div>
       </form>`;
     document.body.appendChild(overlay);
@@ -152,6 +153,13 @@ export function askNumber({ title, value, min, max }) {
     overlay.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Escape") done(null);
+    });
+    overlay.querySelector(".stepper").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-step]");
+      if (!btn) return;
+      const n = Math.round(Number(field.value) || 0) + Number(btn.dataset.step);
+      field.value = Math.max(min, Math.min(max, n));
+      field.focus();
     });
     overlay.addEventListener("mousedown", (e) => e.target === overlay && done(null));
     field.focus();

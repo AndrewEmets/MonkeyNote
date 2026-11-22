@@ -5,12 +5,13 @@ import { lineCapacity, renderStaff } from "../staff.js";
 import { icon } from "../icons.js";
 import { input } from "../input.js";
 import { keyboardInput } from "../keyboard-input.js";
-import { midiStatus, onMidiChange } from "../midi.js";
+import { keyLights, midiStatus, onMidiChange } from "../midi.js";
 import { midiRange } from "../midi-range.js";
 import { createPiano } from "../piano.js";
 import { TestEngine } from "../engine.js";
 import { computeResults, renderResults } from "../results.js";
-import { configKey, loadPbs, loadResults, recordPlayTime, recordTestStart, saveResult } from "../history.js";
+import { bestKey, configKey, loadPbs, loadResults, recordPlayTime, recordTestStart, saveResult } from "../history.js";
+import { applyLevel, LEVELS, matchingLevel, rankStatus } from "../levels.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 import { themeNames } from "../theme.js";
@@ -56,7 +57,7 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "attackSpeed", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordPower", "paceCaret", "paceCaretNpm",
+  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames", "barLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -154,6 +155,7 @@ export function mount(container) {
 }
 
 export function unmount() {
+  keyLights.clear();
   closeMenu();
   recordAbandoned();
   stopTimers();
@@ -376,6 +378,21 @@ function stopTimers() {
   ticker = earTimer = null;
 }
 
+// ---- key lights ----
+
+/** Hints make a test practice, not ranked: lights on the current note, or any mistake light shown. */
+const hintsUsed = () => test.cfg.keyLights === "current" || !!test.hinted;
+
+/** Light the current note's keys ("current"), or only after a wrong note on it ("mistake"). */
+function updateLights() {
+  const engine = test?.engine;
+  const mode = test?.cfg.keyLights;
+  const item = engine?.items[engine.index];
+  const show = item && engine.state !== "done" && !showingResults() && (mode === "current" || (mode === "mistake" && test.lightIndex === engine.index));
+  if (!show) return keyLights.clear();
+  if (keyLights.show(item.notes.map(midiOf))) test.hinted ||= mode === "mistake";
+}
+
 // ---- pace caret ----
 
 /** Target speed (npm) for the pace caret, or null: custom, best, or average of the last 10 runs with these settings. */
@@ -383,7 +400,7 @@ function paceFor(cfg) {
   if (cfg.mode === "attack" || cfg.paceCaret === "off") return null;
   if (cfg.paceCaret === "custom") return cfg.paceCaretNpm;
   const key = configKey(cfg);
-  if (cfg.paceCaret === "pb") return loadPbs()[key]?.npm ?? null;
+  if (cfg.paceCaret === "pb") return loadPbs()[bestKey(cfg, rankStatus(cfg))]?.npm ?? null;
   const recent = loadResults().filter((r) => r.config === key && r.npm > 0).slice(-10);
   return recent.length ? recent.reduce((a, r) => a + r.npm, 0) / recent.length : null;
 }
@@ -543,7 +560,12 @@ function restart() {
     settings.set("theme", names[Math.floor(Math.random() * names.length)]);
   }
   const cfg = settings.all();
-  const fifths = cfg.keySignature === "random" ? KEYS[Math.floor(Math.random() * KEYS.length)].fifths : cfg.keySignature;
+  const fifths =
+    cfg.keySignature === "random"
+      ? KEYS[Math.floor(Math.random() * KEYS.length)].fifths
+      : cfg.keySignature === "random2"
+        ? Math.floor(Math.random() * 5) - 2
+        : cfg.keySignature;
   const genOpts = {
     clef: cfg.clef,
     fifths,
@@ -577,6 +599,7 @@ function restart() {
   renderCounter();
   renderHint();
   draw();
+  updateLights();
   scheduleEarPlay(500);
 }
 
@@ -584,16 +607,26 @@ function restart() {
 function renderMeta() {
   const { cfg, fifths, attack } = test;
   const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
-  const key = `${keyName(fifths)}${cfg.keySignature === "random" ? " (random)" : ""}`;
+  const key = `${keyName(fifths)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
+  const rank = rankStatus(cfg, { hints: hintsUsed() });
+  const levelLabel = rank.level ? rank.level.id : "custom";
+  const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level" title="${rank.ranked ? "ranked: results count for this level's bests" : `practice (${rank.reason})`}">${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
   const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
   const chords = `<button class="meta-pick" data-pick="chords" title="single notes or chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
-  els.meta.innerHTML = `<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
+  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
 }
 
 function onMetaClick(e) {
   const btn = e.target.closest("[data-pick]");
   if (!btn) return;
   const key = btn.dataset.pick;
+  if (key === "level") {
+    const current = matchingLevel(settings.all())?.id;
+    return openMenu(btn, [
+      ...LEVELS.map((l) => ({ label: `${l.id}: ${l.text}`, active: current === l.id, run: () => applyLevel(l.id) })),
+      { label: "custom: your own settings (practice)", active: !current, run: () => {} },
+    ]);
+  }
   if (key === "chords") {
     // One menu for both: single notes, or chords at a density.
     const s = settings.all();
@@ -609,7 +642,7 @@ function onMetaClick(e) {
       })),
     ]);
   }
-  const label = (v) => (key === "keySignature" ? (v === "random" ? "random key" : keyName(v)) : valueLabel(key, v));
+  const label = (v) => (key === "keySignature" ? (v === "random" ? "random key" : v === "random2" ? "random key, up to 2♯/♭" : keyName(v)) : valueLabel(key, v));
   openMenu(
     btn,
     OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })),
@@ -617,6 +650,7 @@ function onMetaClick(e) {
 }
 
 const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
+const EAR_NEXT_DELAY_MS = 750; // pause after a right note before the next one plays
 
 function onInput(ev) {
   if (ev.type === "control") {
@@ -642,7 +676,8 @@ function onInput(ev) {
   if (!out.correct) onWrong(before);
   if (out.resolved) {
     view?.update(before);
-    scheduleEarPlay(350);
+    updateLights();
+    scheduleEarPlay(EAR_NEXT_DELAY_MS);
   }
   renderCounter();
   // Let the last note animate first (unless a restart happens meanwhile).
@@ -657,6 +692,10 @@ function onWrong(index) {
   const { cfg } = test;
   if (settings.get("errorSound")) audio.error();
   view?.shakeItem(index);
+  if (test.cfg.keyLights === "mistake") {
+    test.lightIndex = index;
+    updateLights();
+  }
   if (cfg.ear) {
     const wrongs = (test.wrongs.get(index) ?? 0) + 1;
     test.wrongs.set(index, wrongs);
@@ -687,6 +726,7 @@ function finish(at) {
 }
 
 function showResults() {
+  keyLights.clear();
   stopAutoplay();
   stopTimers();
   exitFocusMode();
@@ -709,12 +749,14 @@ function showResults() {
         pitches: r.pitches.map((p) => [p.midi, p.attempts, p.misses]),
       },
       cfg,
+      rankStatus(cfg, { hints: hintsUsed() }),
     ));
   }
   els.area.hidden = true;
   els.piano.hidden = true;
   els.results.hidden = false;
-  renderResults(els.results, r, { cfg, fifths, isPb, note: test.cheated ? "debug run: not saved to stats" : "" });
+  const rank = rankStatus(cfg, { hints: hintsUsed() });
+  renderResults(els.results, r, { cfg, fifths, isPb, rank, note: test.cheated ? "debug run: not saved to stats" : "" });
   resultsShownAt = performance.now();
   renderMidiMenu();
 }

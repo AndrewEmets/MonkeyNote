@@ -22,14 +22,19 @@ function pickOutput() {
   return outs.find((o) => inputs.includes(o.name)) ?? outs[0] ?? null;
 }
 
-const VELOCITY = 80;
+const FULL_VELOCITY = 110;
+let velocity = Math.round(FULL_VELOCITY * 0.5); // follows the volume setting
 
 /** Play notes on the MIDI keyboard (channel 1). Same shape as the audio engine's playback calls. */
 export const midiOut = {
   name: () => pickOutput()?.name ?? null,
   available: () => !!pickOutput(),
+  /** Volume 0..1 sets the note velocity (0 = silent: notes aren't sent). */
+  setVolume(v) {
+    velocity = Math.round(FULL_VELOCITY * v);
+  },
   noteOn(midi) {
-    pickOutput()?.send([0x90, midi, VELOCITY]);
+    if (velocity > 0) pickOutput()?.send([0x90, midi, velocity]);
   },
   noteOff(midi) {
     pickOutput()?.send([0x80, midi, 0]);
@@ -38,10 +43,41 @@ export const midiOut = {
   play(midis, seconds) {
     const out = pickOutput();
     if (!out) return false;
+    if (velocity === 0) return true;
     const off = performance.now() + seconds * 1000;
-    for (const m of midis) out.send([0x90, m, VELOCITY]);
+    for (const m of midis) out.send([0x90, m, velocity]);
     for (const m of midis) out.send([0x80, m, 0], off);
     return true;
+  },
+};
+
+/**
+ * Key lights on keyboards that light keys for notes received on a "guide" channel, e.g. Casio's
+ * MIDI IN Navigate (channel 4 = right hand, 3 = left hand by default). Notes are sent at the lowest
+ * velocity in case that channel also sounds.
+ */
+export const keyLights = {
+  channel: 4,
+  lit: new Set(),
+  setChannel(ch) {
+    if (ch === this.channel) return;
+    this.clear();
+    this.channel = ch;
+  },
+  /** Light exactly these keys (turning off any others). */
+  show(midis) {
+    const out = pickOutput();
+    if (!out) return false;
+    const want = new Set(midis);
+    for (const m of this.lit) if (!want.has(m)) out.send([0x80 | (this.channel - 1), m, 0]);
+    for (const m of want) if (!this.lit.has(m)) out.send([0x90 | (this.channel - 1), m, 1]);
+    this.lit = want;
+    return true;
+  },
+  clear() {
+    const out = pickOutput();
+    if (out) for (const m of this.lit) out.send([0x80 | (this.channel - 1), m, 0]);
+    this.lit = new Set();
   },
 };
 

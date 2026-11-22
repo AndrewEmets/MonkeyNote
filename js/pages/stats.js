@@ -6,8 +6,8 @@ import { icon } from "../icons.js";
 import { createPiano } from "../piano.js";
 import { barChart, heatmap, pointsChart } from "../charts.js";
 import { loadPbs, loadResults, loadStats, notationKey } from "../history.js";
+import { LEVELS } from "../levels.js";
 
-const MODE_VALUES = { notes: [8, 16, 32, 64], time: [15, 30, 60, 120], attack: [20, 30, 45, 60] };
 const RANGES = { day: 1, week: 7, month: 30, "3 months": 90, "all time": Infinity };
 const PAGE = 10;
 
@@ -73,7 +73,7 @@ function render() {
   const results = filtered(all);
   root.innerHTML = `
     ${summaryCard(stats)}
-    ${["notes", "time", "attack"].map(pbCard).join("")}
+    ${bestsCard()}
     <section class="stats-card activity">
       <div class="activity-head"><span>last 12 months</span><span class="activity-count"></span>
         <span class="legend-scale">less <i class="cell l0"></i><i class="cell l1"></i><i class="cell l2"></i><i class="cell l3"></i><i class="cell l4"></i> more</span></div>
@@ -105,24 +105,31 @@ function summaryCard(stats) {
     </section>`;
 }
 
-/** Best result for each length of a mode, across all notation settings. */
-function pbCard(mode) {
+/**
+ * Personal bests: one row per ranked level, plus "practice" (any other settings), for the ranked lengths.
+ */
+function bestsCard() {
   const pbs = loadPbs();
-  const metric = mode === "attack" ? "score" : "npm";
-  const cells = MODE_VALUES[mode]
-    .map((value) => {
-      const prefix = `${mode}|${value}|`;
-      let best = null;
-      for (const [key, pb] of Object.entries(pbs)) {
-        if (key.startsWith(prefix) && pb[metric] != null && (!best || pb[metric] > best.pb[metric])) best = { pb, notation: key.slice(prefix.length) };
-      }
-      const label = mode === "attack" ? `${value} npm start` : mode === "time" ? `${value} seconds` : `${value} notes`;
-      if (!best) return `<div class="pb-cell"><div class="pb-label">${label}</div><div class="pb-value">-</div><div class="pb-acc">-</div></div>`;
-      const tip = `${best.pb[metric]} ${metric} · ${best.pb.acc}% acc · ${formatDate(best.pb.date)} · ${best.notation.replaceAll("|", " · ")}`;
-      return `<div class="pb-cell" title="${tip}"><div class="pb-label">${label}</div><div class="pb-value">${best.pb[metric]}</div><div class="pb-acc">${best.pb.acc}%</div></div>`;
-    })
-    .join("");
-  return `<section class="stats-card pbs"><div class="pb-mode">${mode}${mode === "attack" ? " (score)" : ""}</div><div class="pb-cells">${cells}</div></section>`;
+  const columns = [
+    ["notes", 16, "16 notes"],
+    ["notes", 32, "32 notes"],
+    ["time", 30, "30 seconds"],
+    ["time", 60, "60 seconds"],
+  ];
+  const cell = (group, mode, value, label) => {
+    const pb = pbs[`${group}|${mode}|${value}`];
+    const metric = mode === "attack" ? "score" : "npm";
+    if (!pb?.[metric]) return `<div class="pb-cell"><div class="pb-label">${label}</div><div class="pb-value">-</div><div class="pb-acc">-</div></div>`;
+    return `<div class="pb-cell" title="${pb[metric]} ${metric} · ${pb.acc}% acc · ${formatDate(pb.date)}"><div class="pb-label">${label}</div><div class="pb-value">${pb[metric]}</div><div class="pb-acc">${pb.acc}%</div></div>`;
+  };
+  const rows = [...LEVELS.map((l) => l.id), "practice"].map(
+    (group) => `
+      <div class="pb-row">
+        <div class="pb-mode" title="${LEVELS.find((l) => l.id === group)?.text ?? "any other settings"}">${group === "practice" ? "practice" : `${icon("crown")}${group}`}</div>
+        <div class="pb-cells">${columns.map(([mode, value, label]) => cell(group, mode, value, label)).join("")}</div>
+      </div>`,
+  );
+  return `<section class="stats-card pbs"><div class="pb-title">personal bests <span>ranked levels use fixed settings; everything else is practice</span></div>${rows.join("")}</section>`;
 }
 
 function filtersHtml() {

@@ -161,6 +161,8 @@ export function renderStaff(container, opts) {
   // Caret, positioned by a CSS transform so it can animate between items.
   const caret = el("g", { class: `caret caret-${opts.caretStyle}${opts.smoothCaret ? " smooth" : ""}` }, parent);
   drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines);
+  caret.style.display = "none";
+  let caretShown = false;
 
   container.replaceChildren(svg);
 
@@ -184,8 +186,23 @@ export function renderStaff(container, opts) {
     /** Caret before item k; k = items.length puts it just after the last item; -1 hides it. */
     setCaret(k) {
       const item = opts.items[k] ?? (k === opts.items.length ? opts.items[k - 1] : null);
-      caret.style.display = item ? "" : "none";
-      if (item) caret.style.transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
+      if (!item) {
+        caret.style.display = "none";
+        caretShown = false;
+        return;
+      }
+      const transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
+      if (caretShown) {
+        caret.style.transform = transform;
+        return;
+      }
+      // Appearing (new line, new render): jump straight there instead of animating in from the corner.
+      caret.style.transition = "none";
+      caret.style.transform = transform;
+      caret.style.display = "";
+      void caret.getBoundingClientRect();
+      caret.style.transition = "";
+      caretShown = true;
     },
     /** Pace caret at a fractional item position (e.g. 3.5 = halfway through item 3); null hides it. */
     setGhost(pos) {
