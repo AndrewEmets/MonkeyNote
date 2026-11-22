@@ -1,8 +1,8 @@
-# MonkeyNote
+# MonkeyScore
 
-A sight-reading trainer for piano notation, in the spirit of [MonkeyType](https://monkeytype.com).
+A sight-reading trainer for piano notation (formerly MonkeyNote), in the spirit of [MonkeyType](https://monkeytype.com).
 
-Live: https://andrewemets.github.io/MonkeyNote/
+Live: https://andrewemets.github.io/MonkeyScore/
 
 See [DESIGN.md](DESIGN.md) for the plan.
 

@@ -1,6 +1,7 @@
 // Settings store: defaults, validation, localStorage persistence, change subscriptions.
 import { THEMES } from "./data/themes.js";
 
+// Storage keys keep the project's original name (MonkeyNote) so existing settings and stats survive the rename.
 const STORAGE_KEY = "monkeynote.settings";
 
 // Allowed values per setting. The first-listed default lives in DEFAULTS.

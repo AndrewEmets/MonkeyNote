@@ -76,7 +76,7 @@ function themeMenu() {
 
 function restartTest() {
   if (/^#?(settings|stats)/.test(location.hash)) location.hash = "";
-  else window.dispatchEvent(new Event("monkeynote:restart"));
+  else window.dispatchEvent(new Event("monkeyscore:restart"));
 }
 
 // ---- open / close ----

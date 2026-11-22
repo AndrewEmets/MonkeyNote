@@ -1,4 +1,4 @@
-# MonkeyNote — Design
+# MonkeyScore — Design
 
 A piano sight-reading trainer with MonkeyType's UX: same layout, settings page,
 themes, and keyboard-driven flow, applied to reading notes on a staff.
@@ -8,7 +8,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Topic | Decision |
 |---|---|
 | Stack | Vanilla HTML + JS (ES modules), no build step. Small libraries only if unavoidable. |
-| Hosting | GitHub Pages, served from `main` root: https://andrewemets.github.io/MonkeyNote/ |
+| Hosting | GitHub Pages, served from `main` root: https://andrewemets.github.io/MonkeyScore/ |
 | Storage | `localStorage` only: settings, results (last 5000), personal bests, activity counters. No backend. |
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |

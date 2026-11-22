@@ -16,7 +16,7 @@ let currentPage = null;
 
 function renderHeader() {
   document.getElementById("top").innerHTML = `
-    <a class="logo" href="#" aria-label="monkeynote">${icon("logo")}<span class="name">monkeynote</span></a>
+    <a class="logo" href="#" aria-label="monkeyscore">${icon("logo")}<span class="name">monkeyscore</span></a>
     <nav class="nav">
       <a href="#" title="start test" aria-label="start test">${icon("piano")}</a>
       <a href="#stats" title="stats" aria-label="stats">${icon("chart")}</a>
@@ -29,7 +29,7 @@ function renderFooter() {
     <div class="keytips"><kbd>tab</kbd> - restart test<br /><kbd>esc</kbd> or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>p</kbd> - command line</div>
     <div class="footer-row">
       <div class="footer-links">
-        <a href="https://github.com/AndrewEmets/MonkeyNote" target="_blank" rel="noopener">${icon("code")}<span>github</span></a>
+        <a href="https://github.com/AndrewEmets/MonkeyScore" target="_blank" rel="noopener">${icon("code")}<span>github</span></a>
       </div>
       <div class="footer-links">
         <button class="theme-indicator" title="change theme">${icon("palette")}<span>${themeLabel(settings.get("theme"))}</span></button>

@@ -114,7 +114,7 @@ export function mount(container) {
     restart();
   });
   document.addEventListener("keydown", onKeyDown);
-  window.addEventListener("monkeynote:restart", restart);
+  window.addEventListener("monkeyscore:restart", restart);
   document.addEventListener("mousemove", exitFocusMode);
   resizeObserver = new ResizeObserver(() => draw());
   resizeObserver.observe(els.staff);
@@ -152,7 +152,7 @@ export function unmount() {
   stopTimers();
   exitFocusMode();
   document.removeEventListener("keydown", onKeyDown);
-  window.removeEventListener("monkeynote:restart", restart);
+  window.removeEventListener("monkeyscore:restart", restart);
   document.removeEventListener("mousemove", exitFocusMode);
   resizeObserver.disconnect();
   cleanups.forEach((fn) => fn());

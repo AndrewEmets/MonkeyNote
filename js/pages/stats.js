@@ -340,7 +340,7 @@ function exportCsv() {
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = "monkeynote-results.csv";
+  a.download = "monkeyscore-results.csv";
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
