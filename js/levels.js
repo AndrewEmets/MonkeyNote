@@ -45,11 +45,39 @@ export function rankStatus(cfg, { hints = false } = {}) {
   return { level, ranked: true, reason: "" };
 }
 
-/** Switch to a level's settings (the test restarts once). */
+// Your own ("custom") settings are remembered when you switch to a level, so "custom" brings them back.
+const CUSTOM_KEY = "monkeynote.customSettings";
+const LEVEL_KEYS = [...new Set(LEVELS.flatMap((l) => Object.keys(l.settings))), "memory", "ear"];
+
+let remembered = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_KEY));
+  } catch {
+    return null;
+  }
+})();
+
+function saveCustom() {
+  remembered = Object.fromEntries(LEVEL_KEYS.map((k) => [k, settings.get(k)]));
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(remembered));
+  } catch {
+    // storage unavailable: remembered for this page view only
+  }
+}
+
+/** Switch to a level's settings (the test restarts once). Leaving custom settings remembers them. */
 export function applyLevel(id) {
   const level = LEVELS.find((l) => l.id === id);
   if (!level) return;
+  if (!matchingLevel(settings.all())) saveCustom();
   for (const [key, value] of Object.entries(level.settings)) settings.set(key, value);
   settings.set("memory", false);
   settings.set("ear", false);
+}
+
+/** Back to the settings you had before picking a level (if any were remembered). */
+export function restoreCustom() {
+  if (!matchingLevel(settings.all()) || !remembered) return;
+  for (const key of LEVEL_KEYS) if (key in remembered) settings.set(key, remembered[key]);
 }

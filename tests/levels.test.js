@@ -27,3 +27,15 @@ test("bests are kept per ranked level, or under practice", () => {
   assert.equal(bestKey(cfg, rankStatus(cfg)), "advanced|notes|16");
   assert.equal(bestKey({ ...cfg, notesCount: 8 }, rankStatus({ ...cfg, notesCount: 8 })), "practice|notes|8");
 });
+
+test("custom settings come back after trying a level", async () => {
+  const { settings } = await import("../js/settings.js");
+  const { applyLevel, restoreCustom } = await import("../js/levels.js");
+  settings.set("clef", "bass");
+  settings.set("ledgerLines", 3);
+  applyLevel("expert");
+  assert.equal(settings.get("clef"), "grand");
+  applyLevel("beginner"); // level to level: the remembered custom settings stay
+  restoreCustom();
+  assert.deepEqual([settings.get("clef"), settings.get("ledgerLines")], ["bass", 3]);
+});

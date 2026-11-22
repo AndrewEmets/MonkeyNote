@@ -5,6 +5,7 @@ import { initMidi, keyLights, midiOut, onMidiChange } from "./midi.js";
 import { input } from "./input.js";
 import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
+import { initTooltips } from "./tooltip.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
@@ -60,6 +61,11 @@ document.documentElement.classList.toggle("flip-colors", settings.get("flipColor
 audio.setVolume(settings.get("volume"));
 midiOut.setVolume(settings.get("volume"));
 keyLights.setChannel(settings.get("keyLightChannel"));
+// Give the guide channel its volume back when the page closes.
+window.addEventListener("pagehide", () => {
+  keyLights.clear();
+  keyLights.unmute();
+});
 audio.setInstrument(settings.get("instrument"));
 settings.subscribe((key, value) => {
   if (key === "theme" || (key === "customTheme" && settings.get("theme") === "custom")) {
@@ -75,6 +81,10 @@ settings.subscribe((key, value) => {
   if (key === "instrument") audio.setInstrument(value);
   if (key === "soundOutput") updateSoundOutput();
   if (key === "keyLightChannel") keyLights.setChannel(value);
+  if (key === "keyLights" && value === "off") {
+    keyLights.clear();
+    keyLights.unmute();
+  }
 });
 
 // Command palette: Esc (outside text fields) or Ctrl/Cmd+Shift+P; the footer theme name opens its theme list.
@@ -109,6 +119,7 @@ input.subscribe((ev) => {
 const updateSoundOutput = () => audio.setRouter(settings.get("soundOutput") === "midi" && midiOut.available() ? midiOut : null);
 onMidiChange(updateSoundOutput);
 
+initTooltips();
 renderHeader();
 renderFooter();
 window.addEventListener("hashchange", route);

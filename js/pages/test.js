@@ -11,7 +11,8 @@ import { createPiano } from "../piano.js";
 import { TestEngine } from "../engine.js";
 import { computeResults, renderResults } from "../results.js";
 import { bestKey, configKey, loadPbs, loadResults, recordPlayTime, recordTestStart, saveResult } from "../history.js";
-import { applyLevel, LEVELS, matchingLevel, rankStatus } from "../levels.js";
+import { applyLevel, LEVELS, matchingLevel, rankStatus, restoreCustom } from "../levels.js";
+import { tipAttr } from "../tooltip.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 import { themeNames } from "../theme.js";
@@ -610,7 +611,7 @@ function renderMeta() {
   const key = `${keyName(fifths)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
   const levelLabel = rank.level ? rank.level.id : "custom";
-  const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level" title="${rank.ranked ? "ranked: results count for this level's bests" : `practice (${rank.reason})`}">${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
+  const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
   const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
   const chords = `<button class="meta-pick" data-pick="chords" title="single notes or chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
   els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
@@ -623,8 +624,8 @@ function onMetaClick(e) {
   if (key === "level") {
     const current = matchingLevel(settings.all())?.id;
     return openMenu(btn, [
-      ...LEVELS.map((l) => ({ label: `${l.id}: ${l.text}`, active: current === l.id, run: () => applyLevel(l.id) })),
-      { label: "custom: your own settings (practice)", active: !current, run: () => {} },
+      ...LEVELS.map((l) => ({ label: l.id, tip: l.text, active: current === l.id, run: () => applyLevel(l.id) })),
+      { label: "custom", tip: "your own settings (practice)", active: !current, run: restoreCustom },
     ]);
   }
   if (key === "chords") {
@@ -834,7 +835,8 @@ let transition = null; // { anims, fast, shakes }
  * Draw the visible staff lines and set `view`.
  * Normal: the current item's line, then the next ones (staff lines setting).
  * Memory (without ear): only the current batch of N notes (memory batch setting), wrapped if needed.
- * opts.enter: after a line change, which rows fade in ("last" or "all"); opts.fast: quicker fade-in.
+ * opts.enter: after a line change, how many leading rows were already on screen (the rest fade in);
+ * opts.fast: quicker fade-in.
  */
 function draw({ enter = null, fast = false } = {}) {
   const shakes = transition?.shakes ?? [];
@@ -890,7 +892,7 @@ function draw({ enter = null, fast = false } = {}) {
   els.staff.style.minHeight = `${test.staffHeight}px`;
 
   // After a line change: fade in the rows that weren't on screen before.
-  const entering = enter === "all" ? lines : enter === "last" ? lines.slice(-1) : [];
+  const entering = enter === null ? [] : lines.slice(enter);
   for (const { holder } of entering) {
     holder.animate([{ opacity: 0, transform: "translateY(1rem)" }, { opacity: 1, transform: "none" }], { duration: fast ? 120 : LINE_END_MS, easing: LINE_EASING });
   }
@@ -966,7 +968,8 @@ function draw({ enter = null, fast = false } = {}) {
     Promise.all(anims.map((a) => a.finished))
       .then(() => {
         if (transition !== t) return;
-        draw({ enter: next ? "last" : "all", fast: t.fast });
+        // Rows that slid up are already in place; only rows new to the screen fade in.
+        draw({ enter: next ? lines.length - 1 : 0, fast: t.fast });
         t.shakes.forEach((i) => view?.shakeItem(i));
       })
       .catch(() => {}); // cancelled by another draw

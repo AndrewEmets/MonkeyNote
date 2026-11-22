@@ -1,6 +1,7 @@
 // Dropdown menu anchored under an element (e.g. the clef / key words above the staff).
-// items: [{ label, active, run }]. Closes on pick, outside click, Esc or scroll.
+// items: [{ label, active, run, tip }]. Closes on pick, outside click, Esc or scroll.
 import { icon } from "./icons.js";
+import { tipAttr } from "./tooltip.js";
 
 let open = null; // { el, close }
 
@@ -15,7 +16,7 @@ export function openMenu(anchor, items) {
   el.className = "dropdown";
   el.setAttribute("role", "menu");
   el.innerHTML = items
-    .map((item, i) => `<button class="dropdown-item${item.active ? " active" : ""}" role="menuitem" data-i="${i}">${item.active ? icon("check") : `<span class="icon"></span>`}<span>${item.label}</span></button>`)
+    .map((item, i) => `<button class="dropdown-item${item.active ? " active" : ""}" role="menuitem" data-i="${i}"${tipAttr(item.tip, "right")}>${item.active ? icon("check") : `<span class="icon"></span>`}<span>${item.label}</span></button>`)
     .join("");
   document.body.appendChild(el);
 

@@ -59,15 +59,18 @@ export const midiOut = {
 export const keyLights = {
   channel: 4,
   lit: new Set(),
+  muted: null, // channel whose volume we turned down, so lit notes stay silent
   setChannel(ch) {
     if (ch === this.channel) return;
     this.clear();
+    this.unmute();
     this.channel = ch;
   },
   /** Light exactly these keys (turning off any others). */
   show(midis) {
     const out = pickOutput();
     if (!out) return false;
+    this.mute(out);
     const want = new Set(midis);
     for (const m of this.lit) if (!want.has(m)) out.send([0x80 | (this.channel - 1), m, 0]);
     for (const m of want) if (!this.lit.has(m)) out.send([0x90 | (this.channel - 1), m, 1]);
@@ -78,6 +81,22 @@ export const keyLights = {
     const out = pickOutput();
     if (out) for (const m of this.lit) out.send([0x80 | (this.channel - 1), m, 0]);
     this.lit = new Set();
+  },
+  // The guide channel also sounds its notes; channel volume (CC 7) and expression (CC 11) at 0
+  // silence it while the lights still follow the notes. Restored when lights are turned off.
+  mute(out) {
+    if (this.muted === this.channel) return;
+    out.send([0xb0 | (this.channel - 1), 7, 0]);
+    out.send([0xb0 | (this.channel - 1), 11, 0]);
+    this.muted = this.channel;
+  },
+  unmute() {
+    const out = pickOutput();
+    if (out && this.muted !== null) {
+      out.send([0xb0 | (this.muted - 1), 7, 100]);
+      out.send([0xb0 | (this.muted - 1), 11, 127]);
+    }
+    this.muted = null;
   },
 };
 

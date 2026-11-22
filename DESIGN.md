@@ -128,7 +128,8 @@ restart immediately, as in MonkeyType.)
 ## Ranked levels
 
 Fixed notation settings everyone competes on (bests are local for now; a leaderboard could use the same levels).
-Picked from the first dropdown above the staff; a crown marks a ranked setup.
+Picked from the first dropdown above the staff (level details in tooltips); a crown marks a ranked setup.
+Picking a level remembers your own settings; "custom" brings them back.
 
 | Level | Settings |
 |---|---|
@@ -145,7 +146,8 @@ bests are kept per level + mode + length, and one set for practice. All results 
 
 For keyboards that light keys for notes received on a guide channel (Casio "MIDI IN Navigate": channel 4
 right hand, 3 left hand by default). Off / light the current note / light it only after a wrong note.
-Notes go out at velocity 1 on the chosen channel. Hinted tests count as practice. Brands with proprietary
+Notes go out at velocity 1 on the chosen channel, whose volume (CC 7/11) is turned down so lit notes stay
+silent; it's restored when lights are turned off or the page closes. Hinted tests count as practice. Brands with proprietary
 light protocols (e.g. ROLI/Lumi SysEx) aren't covered.
 
 ## Stats page
