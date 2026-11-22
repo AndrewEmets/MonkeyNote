@@ -62,7 +62,9 @@ Toggles (combine with notes / time / attack):
 - **Chords**: style random (2–max notes stacked within an octave), triads, sevenths, or both.
   Triads and sevenths are built on the key's scale degrees (so they're the key's own chords),
   in root position and every inversion, and are never chromatically altered.
-- **Single notes in chords** (on by default): about one item in four is a single note when chords are on.
+- **Chord density**: each item gets `1 + floor(r^p × max)` notes for a random r in [0, 1) (max = max chord notes,
+  or the triad/seventh size). p = 3 / 2 / 1 / 0.5 / 0.33: mostly single, sparse, even (default), dense, mostly full.
+  Smaller triads/sevenths take the lowest notes of the shape (a third or fourth, etc.).
 - **Note names** (helper): the note's letter and accidental next to each notehead.
 
 ## Input

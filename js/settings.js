@@ -32,7 +32,7 @@ export const OPTIONS = {
   maxLeap: [1, 2, 3, 4, 7, "any"],
   chordStyle: ["random", "triads", "sevenths", "both"],
   maxChordNotes: [2, 3, 4, 5],
-  chordSingles: [false, true],
+  chordPower: [3, 2, 1, 0.5, 0.33],
   memoryBatch: [2, 4, 8], // or any custom 1..32 (validated separately)
   noteNames: [false, true],
   // appearance
@@ -77,7 +77,7 @@ export const DEFAULTS = {
   maxLeap: 7,
   chordStyle: "random",
   maxChordNotes: 3,
-  chordSingles: true,
+  chordPower: 1,
   memoryBatch: 4,
   noteNames: false,
   noteSize: "medium",

@@ -33,7 +33,6 @@ const ATTACK_BACKOFF_SLOTS = 4;
 const ATTACK_SPRING_MS = 700;
 const ATTACK_RECOVER_MS = 2500;
 const spring = (p) => 1 - Math.exp(-6 * p) * Math.cos(10 * p); // damped spring, overshoots then settles
-const CHORD_SINGLE_RATE = 0.25; // share of single notes mixed into chord mode, when enabled
 const TOGGLES = [
   ["chords", "chords"],
   ["memory", "eyeOff"],
@@ -50,7 +49,7 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "attackSpeed", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordSingles",
+  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordPower",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -500,7 +499,7 @@ function restart() {
     chords: cfg.chords,
     chordStyle: cfg.chordStyle,
     maxChordNotes: cfg.maxChordNotes,
-    singleRate: cfg.chordSingles ? CHORD_SINGLE_RATE : 0,
+    chordPower: cfg.chordPower,
   };
   const engine = new TestEngine({
     items: generateItems(cfg.mode === "notes" ? cfg.notesCount : 100, genOpts),

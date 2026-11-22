@@ -17,7 +17,7 @@ const SECTIONS = [
     id: "notation",
     title: "notation",
     icon: "note",
-    rows: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordSingles", "noteNames"],
+    rows: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordPower", "noteNames"],
   },
   { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "caretStyle", "smoothCaret", "flipColors", "fontFamily"] },
   { id: "theme", title: "theme", icon: "palette", rows: ["randomTheme", customThemeRow, themeGrid] },

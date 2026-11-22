@@ -1,7 +1,7 @@
 // Run: node --test tests/
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { diatonicOf, generateItems, staffRange } from "../js/music.js";
+import { chordSize, diatonicOf, generateItems, staffRange } from "../js/music.js";
 
 // Deterministic PRNG so failures reproduce.
 function seeded(seed) {
@@ -26,7 +26,7 @@ test("max leap is respected and notes stay in range", () => {
 test("triads are stacked thirds or their inversions, in range", () => {
   const shapes = new Set(["2,2", "2,3", "3,2"]); // root position, 1st inversion, 2nd inversion
   const [lo, hi] = staffRange("bass", 1);
-  for (const it of generateItems(300, { ...base, clef: "bass", ledgerLines: 1, chords: true, chordStyle: "triads" }, seeded(7))) {
+  for (const it of generateItems(300, { ...base, clef: "bass", ledgerLines: 1, chords: true, chordStyle: "triads", chordPower: 0 }, seeded(7))) {
     const ds = it.notes.map(diatonicOf);
     assert.equal(ds.length, 3);
     assert.ok(shapes.has(`${ds[1] - ds[0]},${ds[2] - ds[1]}`), `not a triad shape: ${ds}`);
@@ -34,16 +34,33 @@ test("triads are stacked thirds or their inversions, in range", () => {
   }
 });
 
-test("chord mode mixes in single notes only when asked", () => {
-  const count = (singleRate) =>
-    generateItems(1000, { ...base, chords: true, chordStyle: "triads", singleRate }, seeded(11)).filter((it) => it.notes.length === 1).length;
-  assert.equal(count(0), 0);
-  const some = count(0.25);
-  assert.ok(some > 150 && some < 350, `expected ~250 singles, got ${some}`);
+test("chordSize: 1 + floor(r^power * max), skewed by power", () => {
+  const sizes = (power) => {
+    const rng = seeded(5);
+    const counts = [0, 0, 0, 0];
+    for (let i = 0; i < 6000; i++) counts[chordSize(rng, 3, power)]++;
+    return counts.slice(1).map((c) => c / 6000);
+  };
+  const even = sizes(1);
+  even.forEach((share) => assert.ok(Math.abs(share - 1 / 3) < 0.03, `even: ${even}`));
+  const sparse = sizes(3); // r^3 < 1/3 for r < 0.693: ~69% single notes
+  assert.ok(Math.abs(sparse[0] - 0.693) < 0.03, `sparse: ${sparse}`);
+  const dense = sizes(0.33); // r^0.33 >= 2/3 for r >= 0.29: ~71% full chords
+  assert.ok(dense[2] > 0.65, `dense: ${dense}`);
+});
+
+test("triads at lower densities use the lowest notes of the shape", () => {
+  const items = generateItems(500, { ...base, chords: true, chordStyle: "triads", chordPower: 2 }, seeded(13));
+  const bySize = [1, 2, 3].map((n) => items.filter((it) => it.notes.length === n).length);
+  assert.ok(bySize.every((c) => c > 0), `sizes: ${bySize}`);
+  for (const it of items.filter((x) => x.notes.length === 2)) {
+    const [a, b] = it.notes.map(diatonicOf);
+    assert.ok([2, 3].includes(b - a), `dyad from a triad shape should be a 3rd or 4th: ${b - a}`);
+  }
 });
 
 test("sevenths have four notes within an octave and follow the key", () => {
-  for (const it of generateItems(300, { ...base, fifths: 2, accidentals: "chromatic", chords: true, chordStyle: "sevenths" }, seeded(3))) {
+  for (const it of generateItems(300, { ...base, fifths: 2, accidentals: "chromatic", chords: true, chordStyle: "sevenths", chordPower: 0 }, seeded(3))) {
     const ds = it.notes.map(diatonicOf);
     assert.equal(ds.length, 4);
     assert.ok(ds[3] - ds[0] <= 7, `wider than an octave: ${ds}`);

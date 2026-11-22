@@ -105,10 +105,9 @@ function pickBottom(rng, lo, hi, prev, leap) {
   return d >= prev && prev >= a && prev <= b ? d + 1 : d;
 }
 
-/** Random stack of 2..maxNotes notes within an octave above `bottom` (and at most `hi`). */
-function randomChord(rng, bottom, hi, maxNotes) {
+/** Random stack of `size` notes within an octave above `bottom` (and at most `hi`). */
+function randomChord(rng, bottom, hi, size) {
   const ds = [bottom];
-  const size = randInt(rng, 2, maxNotes);
   const ceiling = Math.min(hi, bottom + 7);
   let top = bottom;
   while (ds.length < size) {
@@ -121,15 +120,23 @@ function randomChord(rng, bottom, hi, maxNotes) {
 }
 
 /**
+ * Notes in the next item, 1..max: 1 + floor(r^power * max) for a random r in [0, 1).
+ * power 1 makes every size equally likely; above 1 favors single notes and small chords,
+ * below 1 favors full chords (0 means always full).
+ */
+export const chordSize = (rng, max, power = 1) => Math.min(max, 1 + Math.floor(rng() ** power * max));
+
+/**
  * Generate test items. Each item is { staff, notes: [pitch] } (one note, or a chord).
  * opts: {
  *   clef, fifths, accidentals: "diatonic" | "chromatic", ledgerLines,
  *   maxLeap (diatonic steps between consecutive items on a staff; Infinity for any),
- *   chords, chordStyle: "random" | "triads" | "sevenths" | "both", maxChordNotes (random style),
- *   singleRate (0..1: share of single notes mixed in when chords are on)
+ *   chords, chordStyle: "random" | "triads" | "sevenths" | "both",
+ *   maxChordNotes (largest random chord), chordPower (see chordSize)
  * }
- * Triads and sevenths are built from the key (so they're the key's own chords) and are never
- * chromatically altered; single notes and random chords may be when accidentals are chromatic.
+ * Triads and sevenths are built from the key (so they're the key's own chords); a smaller size takes
+ * the lowest notes of the shape (e.g. a third or a fifth). They are never chromatically altered;
+ * single notes and random chords may be when accidentals are chromatic.
  */
 export function generateItems(count, opts, rng = Math.random) {
   const staves = opts.clef === "grand" ? ["treble", "bass"] : [opts.clef];
@@ -141,17 +148,19 @@ export function generateItems(count, opts, rng = Math.random) {
     const staff = pick(rng, staves);
     const [lo, hi] = staffRange(staff, opts.ledgerLines);
     const prev = lastBottom[staff];
+    const shape = opts.chords && style !== "random" ? pick(rng, CHORD_SHAPES[style]) : null;
+    const size = opts.chords ? chordSize(rng, shape ? shape.length : opts.maxChordNotes, opts.chordPower) : 1;
+    const single = size === 1;
     let ds;
-    const single = !opts.chords || rng() < (opts.singleRate ?? 0);
     if (single) {
       ds = [pickBottom(rng, lo, hi, prev, leap)];
-    } else if (style === "random") {
-      ds = randomChord(rng, pickBottom(rng, lo, hi - 2, prev, leap), hi, opts.maxChordNotes);
+    } else if (!shape) {
+      ds = randomChord(rng, pickBottom(rng, lo, hi - 2, prev, leap), hi, size);
     } else {
-      const shape = pick(rng, CHORD_SHAPES[style]);
-      const span = shape[shape.length - 1] - shape[0];
+      const part = shape.slice(0, size);
+      const span = part[part.length - 1] - part[0];
       const bottom = pickBottom(rng, lo, hi - span, prev, leap);
-      ds = shape.map((o) => bottom - shape[0] + o);
+      ds = part.map((o) => bottom - part[0] + o);
     }
 
     const alterable = single || style === "random";

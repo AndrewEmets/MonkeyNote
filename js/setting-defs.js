@@ -40,9 +40,15 @@ export const DEFS = {
   ledgerLines: { title: "ledger lines", icon: "lines", text: "How many ledger lines notes may use above and below the staff." },
   maxLeap: { title: "max leap", icon: "octave", text: "Largest jump between one note (or chord) and the next. Smaller leaps read more like real melodies.", labels: { 1: "2nd", 2: "3rd", 3: "4th", 4: "5th", 7: "octave" } },
   chordStyle: { title: "chord style", icon: "chords", text: "Random stacks notes freely. Triads and sevenths are the key's own chords, in root position and every inversion.", labels: { both: "triads + 7ths" } },
-  chordSingles: { title: "single notes in chords", icon: "note", text: "Mix some single notes in among the chords (about one in four), like real music.", labels: onOff },
+  chordPower: {
+    title: "chord density",
+    icon: "chords",
+    text: "How often items are chords, and how full. Each item gets 1 + floor(r^p × max) notes for a random r: even makes every size equally likely; lower densities mean more single notes, higher ones more full chords.",
+    labels: { 3: "mostly single", 2: "sparse", 1: "even", 0.5: "dense", 0.33: "mostly full" },
+    wide: true,
+  },
   memoryBatch: { title: "memory batch", icon: "eyeOff", text: "How many notes to memorize at a time in memory mode." },
-  maxChordNotes: { title: "max chord notes", icon: "chords", text: "Largest random chord when chords are turned on in the test bar. (Triads have 3 notes, sevenths 4.)" },
+  maxChordNotes: { title: "max chord notes", icon: "chords", text: "Largest random chord when chords are turned on in the test bar. (Triads have up to 3 notes, sevenths 4.)" },
   noteNames: { title: "note names", icon: "font", text: "Write each note's name next to it. A helper while you learn to read; turn it off as you improve.", labels: onOff },
 
   // appearance

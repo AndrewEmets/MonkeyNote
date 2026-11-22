@@ -24,7 +24,8 @@ export const modeValue = (cfg) => ({ notes: cfg.notesCount, time: cfg.timeLimit,
 
 /** What's being practised, apart from the test length: used for the stats page's "current settings" filter. */
 export function notationKey(cfg) {
-  const chords = cfg.chords ? (cfg.chordStyle === "random" ? `chords${cfg.maxChordNotes}` : cfg.chordStyle) : "single";
+  const style = cfg.chordStyle === "random" ? `chords${cfg.maxChordNotes}` : cfg.chordStyle;
+  const chords = cfg.chords ? `${style}^${cfg.chordPower ?? 1}` : "single";
   const memory = cfg.memory && cfg.mode !== "attack"; // memory has no effect in attack mode
   return [cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, memory && "memory", cfg.ear && "ear"].filter(Boolean).join("|");
 }
