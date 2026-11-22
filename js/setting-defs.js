@@ -22,6 +22,12 @@ export const DEFS = {
 
   // sound
   playOnPress: { title: "play notes you press", icon: "volume", text: "Sound for the notes you play. MIDI keyboards with their own speakers don't need it.", labels: { nomidi: "keyboard & screen", all: "all inputs" } },
+  soundOutput: {
+    title: "sound output",
+    icon: "plug",
+    text: "Play notes (ear mode, replays, notes you press) through your MIDI keyboard's own sound, e.g. into headphones plugged into it. The wrong-note thud stays in the browser.",
+    labels: { browser: "browser", midi: "midi keyboard" },
+  },
   instrument: { title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
   volume: { title: "volume", icon: "volume", text: "Volume of all sounds.", labels: { 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "100%" } },
   errorSound: { title: "error sound", icon: "warning", text: "A short thud when you play a wrong note.", labels: onOff },
@@ -56,6 +62,12 @@ export const DEFS = {
   staffLines: { title: "staff lines", icon: "lines", text: "How many lines of notes to show at once, so you can read ahead." },
   barLines: { title: "divider lines", icon: "lines", text: "A thin line between every 4 notes, to help you keep your place.", labels: { 0: "off", 4: "every 4 notes" } },
   caretStyle: { title: "caret style", icon: "caret", text: "Shape of the marker on the note to play next.", labels: { line: "|", block: "▮", outline: "▯", underline: "_" } },
+  paceCaret: {
+    title: "pace caret",
+    icon: "caret",
+    text: "A faint second caret that moves at a steady pace: the average of your last 10 runs with these settings, your best, or a speed you choose.",
+    labels: { pb: "best", custom: "custom" },
+  },
   smoothCaret: { title: "smooth caret", icon: "wave", text: "Animate the caret as it moves between notes.", labels: onOff },
   flipColors: { title: "flip test colors", icon: "eye", text: "Show notes still to play in the bright text color and played notes dimmed.", labels: onOff },
   fontFamily: { title: "font family", icon: "font", text: "Font used across the interface.", wide: true },

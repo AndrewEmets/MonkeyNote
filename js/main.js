@@ -1,7 +1,7 @@
 import { settings } from "./settings.js";
 import { applyFont, applyTheme, themeLabel } from "./theme.js";
 import { icon } from "./icons.js";
-import { initMidi } from "./midi.js";
+import { initMidi, midiOut, onMidiChange } from "./midi.js";
 import { input } from "./input.js";
 import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
@@ -9,7 +9,7 @@ import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.8.0";
+export const VERSION = "0.9.0";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
@@ -68,6 +68,7 @@ settings.subscribe((key, value) => {
   if (key === "fontFamily") applyFont(value);
   if (key === "volume") audio.setVolume(value);
   if (key === "instrument") audio.setInstrument(value);
+  if (key === "soundOutput") updateSoundOutput();
 });
 
 // Command palette: Esc (outside text fields) or Ctrl/Cmd+Shift+P; the footer theme name opens its theme list.
@@ -88,12 +89,19 @@ document.getElementById("bottom").addEventListener("click", (e) => {
 for (const type of ["pointerdown", "keydown"]) document.addEventListener(type, () => audio.unlock(), { capture: true });
 
 // Sound for the notes you play (MIDI keyboards often have their own speakers, hence "nomidi").
+// When sound goes to the MIDI keyboard, notes played on it already sound there, so they aren't echoed.
 input.subscribe((ev) => {
-  if (ev.type === "off") return audio.noteOff(ev.midi);
-  if (ev.type !== "on") return;
+  if (ev.type === "control") return;
   const mode = settings.get("playOnPress");
-  if (mode === "all" || (mode === "nomidi" && ev.source !== "midi")) audio.noteOn(ev.midi);
+  const wanted = mode === "all" || (mode === "nomidi" && ev.source !== "midi");
+  if (!wanted || (ev.source === "midi" && audio.isRouted())) return;
+  if (ev.type === "off") audio.noteOff(ev.midi);
+  else audio.noteOn(ev.midi);
 });
+
+// Sound output: the MIDI keyboard when chosen and connected, otherwise the built-in synth.
+const updateSoundOutput = () => audio.setRouter(settings.get("soundOutput") === "midi" && midiOut.available() ? midiOut : null);
+onMidiChange(updateSoundOutput);
 
 renderHeader();
 renderFooter();

@@ -13,16 +13,21 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |
 | Input | MIDI, computer keyboard (piano layout only), on-screen keyboard (optional). |
-| Sound | Web Audio synth, no samples: an additive "piano" (decaying, slightly stretched harmonics) and a soft sine voice. Notes you press are played for keyboard/screen input by default (MIDI keyboards often have speakers). Optional wrong-note thud. Samples may come later. |
+| Sound | Built-in Web Audio synth, or the MIDI keyboard's own sound via MIDI output (setting). Synth: an additive "piano" (decaying, slightly stretched harmonics) and a soft sine voice. Notes you press are played for keyboard/screen input by default (MIDI keyboards often have speakers). Optional wrong-note thud. Samples may come later. |
 
 ## Layout (mirrors MonkeyType)
 
 - **Top bar**: logo, nav icons (test, stats, settings).
-- **Test config bar**: toggles (chords, memory, ear) | mode (notes, time, attack, zen, custom) | mode values.
-- **Above the staff**: clef, key and (with chords on) chord density are clickable dropdowns that change those settings.
+- **Test config bar**: presentation (default / memory / ear, one at a time) | mode (notes, time, attack, zen) |
+  length (presets + custom) | memory batch (in memory mode).
+- **Above the staff**: clef, key and single notes / chords (with density) are clickable dropdowns.
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
   note finishes its animation; the caret moves to the next line while the rows slide up and the finished
-  line fades out (or, with one visible line, it fades out and the next fades in). Thin divider lines mark
+  line fades out (or, with one visible line, the last note shows played, then it fades out and the next
+  fades in). Playing during the change speeds the animation up 4x. The staff keeps its height so the
+  last line doesn't make the page jump.
+- **Pace caret** (off / average of last 10 runs with these settings / best / custom npm): a faint second
+  caret moving at that speed, starting with the first note. Thin divider lines mark
   every 4 notes (setting). Played notes take
   the text color; notes that needed correction the error-extra color.
 - **Below test**: restart button; on-screen keyboard when enabled.
@@ -35,8 +40,8 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 
 | Mode | Values | Notes |
 |---|---|---|
-| notes | 8 / 16 / 32 / 64 | Play a fixed count. |
-| time | 15 / 30 / 60 / 120 / custom s | Play as many as possible. |
+| notes | 8 / 16 / 32 / 64 / custom (1–999) | Play a fixed count. |
+| time | 15 / 30 / 60 / 120 / custom (5–3600) s | Play as many as possible. |
 | attack | 20 / 30 / 45 / 60 npm start | One staff line scrolls toward a hit line after the key signature; speed rises 20 npm per minute. Notes can be played early (in order). A note reaching the line costs a life (3 lives), turns red and stays current: the notes spring back 4 slots, then restart slowly and speed back up over 2.5 s. Wrong notes cost time only. Score: notes played on time; also speed reached and missed count. Ear works here (notes hidden, played as they come up). |
 | zen | — | Free play, no scoring. |
 | custom | — | User-defined note sequence (later). |

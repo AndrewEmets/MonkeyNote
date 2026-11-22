@@ -913,31 +913,9 @@ body.focus-mode .restart-button {
   margin-top: 0.5rem;
 }
 
-/* line change: rows slide up while the finished line fades out (timing matches LINE_END_MS) */
-.staff-wrap.sliding .staff-row {
-  transform: translateY(var(--slide));
-  transition: transform 0.32s cubic-bezier(0.3, 0, 0.2, 1), opacity 0.32s ease;
-}
-
-.staff-wrap.sliding .staff-row:first-child {
-  opacity: 0;
-}
-
-.staff-wrap.leaving .staff-row {
-  transform: translateY(-1rem);
-  opacity: 0;
-  transition: transform 0.32s cubic-bezier(0.3, 0, 0.2, 1), opacity 0.32s ease;
-}
-
-.staff-row.entering {
-  animation: row-in 0.32s cubic-bezier(0.3, 0, 0.2, 1) both;
-}
-
-@keyframes row-in {
-  from {
-    opacity: 0;
-    transform: translateY(1rem);
-  }
+svg.staff .ghost-caret {
+  fill: var(--sub-color);
+  opacity: 0.6;
 }
 
 svg.staff .divider {

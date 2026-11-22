@@ -154,6 +154,10 @@ export function renderStaff(container, opts) {
     return g;
   });
 
+  // Pace caret: a faint line moving at a target speed (hidden until placed).
+  const ghost = el("g", { class: "ghost-caret", style: "display:none" }, parent);
+  el("rect", { x: -0.1, y: -1, width: 0.2, height: 6, rx: 0.1 }, ghost);
+
   // Caret, positioned by a CSS transform so it can animate between items.
   const caret = el("g", { class: `caret caret-${opts.caretStyle}${opts.smoothCaret ? " smooth" : ""}` }, parent);
   drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines);
@@ -182,6 +186,16 @@ export function renderStaff(container, opts) {
       const item = opts.items[k] ?? (k === opts.items.length ? opts.items[k - 1] : null);
       caret.style.display = item ? "" : "none";
       if (item) caret.style.transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
+    },
+    /** Pace caret at a fractional item position (e.g. 3.5 = halfway through item 3); null hides it. */
+    setGhost(pos) {
+      if (pos == null || pos < 0 || pos >= opts.items.length) {
+        ghost.style.display = "none";
+        return;
+      }
+      const k = Math.floor(pos);
+      ghost.style.display = "";
+      ghost.style.transform = `translate(${r(slotLeft(k) + (pos - k) * slot)}px, ${r(geo.tops[opts.items[k].staff])}px)`;
     },
     /** Wrong note: shake the item and flash it red; it stays current. */
     shakeItem(k) {

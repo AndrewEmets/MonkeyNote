@@ -9,6 +9,8 @@ let master = null;
 let volume = 0.5;
 let instrument = "piano";
 const held = new Map(); // midi -> voice, for notes played from an input (released on note-off)
+// Optional output that replaces the synth for notes (e.g. the MIDI keyboard's own sound). The error thud stays here.
+let router = null;
 
 const freq = (m) => 440 * 2 ** ((m - 69) / 12);
 const MAX_PARTIAL_HZ = 16000;
@@ -91,6 +93,11 @@ function releaseVoice(voice, t) {
 const ready = () => !!ctx && ctx.state === "running";
 
 export const audio = {
+  /** Send notes elsewhere (an object with noteOn, noteOff, play), or null for the built-in synth. */
+  setRouter(r) {
+    router = r;
+  },
+  isRouted: () => !!router,
   /** Create or resume the audio context; call from a user gesture. */
   unlock: () => void context(),
   isRunning: ready,
@@ -103,12 +110,14 @@ export const audio = {
   },
   /** Start a note from an input; it sounds until noteOff (or decays). */
   noteOn(midi, velocity = 0.8) {
+    if (router) return router.noteOn(midi);
     if (!context(false) || !ready()) return;
     const t = ctx.currentTime;
     if (held.has(midi)) releaseVoice(held.get(midi), t);
     held.set(midi, startVoice(midi, t, velocity));
   },
   noteOff(midi) {
+    if (router) return router.noteOff(midi);
     const voice = held.get(midi);
     if (!voice) return;
     held.delete(midi);
@@ -116,6 +125,7 @@ export const audio = {
   },
   /** Play notes together (a note or a chord) for `duration` seconds. */
   play(midis, duration = 1.4, velocity = 0.75) {
+    if (router) return router.play(midis, duration);
     if (!context(false) || !ready()) return false;
     const t = ctx.currentTime + 0.01;
     for (const m of midis) releaseVoice(startVoice(m, t, velocity), t + duration);

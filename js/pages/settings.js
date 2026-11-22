@@ -3,23 +3,24 @@ import { CUSTOM_THEME_KEYS, OPTIONS, pickColors, settings } from "../settings.js
 import { DEFS, valueLabel } from "../setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
-import { midiStatus, onMidiChange } from "../midi.js";
+import { midiOut, midiStatus, onMidiChange } from "../midi.js";
 import { midiName, midiRange, PRESETS } from "../midi-range.js";
 import { clearHistory } from "../history.js";
 import { notify } from "../notify.js";
+import { askNumber } from "../palette.js";
 import { audio } from "../audio.js";
 
 // Rows are setting keys (described in setting-defs.js) or custom renderers.
 const SECTIONS = [
   { id: "input", title: "input", icon: "keyboard", rows: [midiRow, midiRangeRow, "chordWindow", "ignoreOctave", "onScreenKeyboard", "keyLabels"] },
-  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", "instrument", "volume", "errorSound", "earReference"] },
+  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", soundOutputRow, "instrument", "volume", "errorSound", "earReference"] },
   {
     id: "notation",
     title: "notation",
     icon: "note",
     rows: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordPower", "noteNames"],
   },
-  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "barLines", "caretStyle", "smoothCaret", "flipColors", "fontFamily"] },
+  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "barLines", "caretStyle", paceCaretRow, "smoothCaret", "flipColors", "fontFamily"] },
   { id: "theme", title: "theme", icon: "palette", rows: ["randomTheme", customThemeRow, themeGrid] },
   { id: "danger", title: "danger zone", icon: "warning", rows: [dangerRows] },
 ];
@@ -52,7 +53,10 @@ export function mount(container) {
   grid.addEventListener("mouseover", onThemeHover);
   grid.addEventListener("mouseleave", () => applyTheme(settings.get("theme"), { persist: false }));
   const unsubSettings = settings.subscribe(refresh);
-  const unsubMidi = onMidiChange(() => (root.querySelector(".midi-status").textContent = midiStatusText()));
+  const unsubMidi = onMidiChange(() => {
+    root.querySelector(".midi-status").textContent = midiStatusText();
+    root.querySelector(".sound-output-status").textContent = soundOutputStatus();
+  });
   const unsubRange = midiRange.subscribe(() => refreshMidiRange());
   unsubscribe = () => (unsubSettings(), unsubMidi(), unsubRange());
 }
@@ -145,6 +149,31 @@ function midiStatusText() {
   return devices.length ? `connected: ${devices.join(", ")}` : "no MIDI device connected";
 }
 
+/** Sound output, with which MIDI output will be used (or why it can't be). */
+function soundOutputRow() {
+  return rowHtml("soundOutput").replace('<div class="setting-text">', `<div class="setting-text"><span class="sound-output-status setting-status">${soundOutputStatus()}</span><br>`);
+}
+
+function soundOutputStatus() {
+  const name = midiOut.name();
+  if (settings.get("soundOutput") !== "midi") return name ? `midi output available: ${name}` : "";
+  return name ? `playing on: ${name}` : "no midi output found: using the browser";
+}
+
+/** Pace caret: the usual buttons, with "custom" showing (and asking for) its speed. */
+function paceCaretRow() {
+  return rowHtml("paceCaret").replace(/data-value='"custom"'>custom</, `data-value='"custom"'>custom: ${settings.get("paceCaretNpm")} npm<`);
+}
+
+async function askPaceNpm() {
+  const n = await askNumber({ title: "pace caret speed (npm)", value: settings.get("paceCaretNpm"), min: 1, max: 400 });
+  if (n === null) return;
+  settings.set("paceCaretNpm", n);
+  settings.set("paceCaret", "custom");
+  const btn = root.querySelector(`[data-key="paceCaret"][data-value='"custom"']`);
+  if (btn) btn.textContent = `custom: ${n} npm`;
+}
+
 function rowHtml(key) {
   const def = DEFS[key];
   const current = settings.get(key);
@@ -220,6 +249,7 @@ function onClick(e) {
   const target = e.target.closest("button");
   if (!target) return;
   if (target.dataset.rangePreset || target.dataset.rangeAction) onMidiRangeAction(target);
+  else if (target.dataset.key === "paceCaret" && target.dataset.value === '"custom"') askPaceNpm();
   else if (target.dataset.key) settings.set(target.dataset.key, JSON.parse(target.dataset.value));
   else if (target.dataset.theme) settings.set("theme", target.dataset.theme);
   else if (target.dataset.jump) scrollToSection(target.dataset.jump);
@@ -296,7 +326,8 @@ function refresh(key, value) {
     return;
   }
   for (const btn of root.querySelectorAll(`[data-key="${key}"]`)) btn.classList.toggle("active", JSON.parse(btn.dataset.value) === value);
+  if (key === "soundOutput") root.querySelector(".sound-output-status").textContent = soundOutputStatus();
   // Preview the new tone or volume with a C major chord.
-  if (key === "instrument" || key === "volume") audio.play([60, 64, 67], 1);
+  if (key === "instrument" || key === "volume" || key === "soundOutput") audio.play([60, 64, 67], 1);
   if (key === "errorSound" && value) audio.error();
 }

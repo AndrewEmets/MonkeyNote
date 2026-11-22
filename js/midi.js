@@ -1,4 +1,5 @@
-// Web MIDI input. Listens to every connected MIDI input and forwards notes to the input hub.
+// Web MIDI. Listens to every connected MIDI input and forwards notes to the input hub, and can play
+// notes on the keyboard itself (its own sound, e.g. through headphones plugged into it).
 import { input } from "./input.js";
 import { notify } from "./notify.js";
 import { midiRange } from "./midi-range.js";
@@ -12,6 +13,37 @@ const deviceNames = () =>
   access ? [...access.inputs.values()].filter((i) => i.state === "connected").map((i) => i.name || "unnamed device") : [];
 
 export const midiStatus = () => ({ status, devices: deviceNames() });
+
+/** The output to play on: the one named like a connected input (the same keyboard), else the first. */
+function pickOutput() {
+  if (!access) return null;
+  const outs = [...access.outputs.values()].filter((o) => o.state === "connected");
+  const inputs = deviceNames();
+  return outs.find((o) => inputs.includes(o.name)) ?? outs[0] ?? null;
+}
+
+const VELOCITY = 80;
+
+/** Play notes on the MIDI keyboard (channel 1). Same shape as the audio engine's playback calls. */
+export const midiOut = {
+  name: () => pickOutput()?.name ?? null,
+  available: () => !!pickOutput(),
+  noteOn(midi) {
+    pickOutput()?.send([0x90, midi, VELOCITY]);
+  },
+  noteOff(midi) {
+    pickOutput()?.send([0x80, midi, 0]);
+  },
+  /** Notes together for `seconds`; note-offs are scheduled by the browser's MIDI clock. */
+  play(midis, seconds) {
+    const out = pickOutput();
+    if (!out) return false;
+    const off = performance.now() + seconds * 1000;
+    for (const m of midis) out.send([0x90, m, VELOCITY]);
+    for (const m of midis) out.send([0x80, m, 0], off);
+    return true;
+  },
+};
 
 export function onMidiChange(fn) {
   listeners.add(fn);

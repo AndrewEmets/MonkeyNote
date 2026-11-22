@@ -21,6 +21,7 @@ export const OPTIONS = {
   keyLabels: [false, true],
   // sound
   playOnPress: ["off", "nomidi", "all"],
+  soundOutput: ["browser", "midi"],
   instrument: ["piano", "soft"],
   volume: [0.25, 0.5, 0.75, 1],
   errorSound: [false, true],
@@ -42,6 +43,7 @@ export const OPTIONS = {
   barLines: [0, 4],
   caretStyle: ["off", "line", "block", "outline", "underline"],
   smoothCaret: [false, true],
+  paceCaret: ["off", "average", "pb", "custom"],
   flipColors: [false, true],
   randomTheme: [false, true],
   fontFamily: ["Roboto Mono", "Lexend Deca", "Fira Code", "Source Code Pro", "Nunito"],
@@ -68,6 +70,7 @@ export const DEFAULTS = {
   onScreenKeyboard: false,
   keyLabels: true,
   playOnPress: "nomidi",
+  soundOutput: "browser",
   instrument: "piano",
   volume: 0.5,
   errorSound: false,
@@ -87,6 +90,8 @@ export const DEFAULTS = {
   barLines: 4,
   caretStyle: "line",
   smoothCaret: true,
+  paceCaret: "off",
+  paceCaretNpm: 40,
   flipColors: false,
   randomTheme: false,
   fontFamily: "Roboto Mono",
@@ -98,6 +103,9 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const VALIDATORS = {
   theme: (v) => v === "custom" || Object.hasOwn(THEMES, v),
   memoryBatch: (v) => Number.isInteger(v) && v >= 1 && v <= 32,
+  notesCount: (v) => Number.isInteger(v) && v >= 1 && v <= 999, // presets in OPTIONS, or custom
+  paceCaretNpm: (v) => Number.isInteger(v) && v >= 1 && v <= 400,
+  timeLimit: (v) => Number.isInteger(v) && v >= 5 && v <= 3600,
   customTheme: (v) => !!v && typeof v === "object" && CUSTOM_THEME_KEYS.every((k) => HEX.test(v[k])),
 };
 const isValid = (key, value) => (VALIDATORS[key] ? VALIDATORS[key](value) : (OPTIONS[key]?.includes(value) ?? false));
