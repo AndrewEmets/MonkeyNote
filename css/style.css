@@ -946,16 +946,19 @@ body.focus-mode .restart-button {
   color: var(--bg-color);
 }
 
-.text-button:disabled {
+.text-button:disabled,
+.text-button.inert {
   opacity: 0.35;
   cursor: default;
 }
 
-.text-button:disabled:hover {
+.text-button:disabled:hover,
+.text-button.inert:hover {
   color: var(--sub-color);
 }
 
-.text-button.active:disabled:hover {
+.text-button.active:disabled:hover,
+.text-button.active.inert:hover {
   color: var(--main-color);
 }
 

@@ -3,6 +3,7 @@ import { CUSTOM_THEME_KEYS, OPTIONS, pickColors, settings } from "../settings.js
 import { DEFS, valueLabel } from "../setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
+import { tipAttr } from "../tooltip.js";
 import { midiOut, midiStatus, onMidiChange } from "../midi.js";
 import { midiName, midiRange, PRESETS } from "../midi-range.js";
 import { clearHistory } from "../history.js";
@@ -108,7 +109,7 @@ function midiRangeButtons() {
   const r = midiRange.get();
   const presets = PRESETS.map((p) => {
     const active = r?.manual && r.low === p.low && r.high === p.high;
-    return `<button class="button${active ? " active" : ""}" data-range-preset="${p.keys}" title="${midiName(p.low)}–${midiName(p.high)}">${p.keys} keys</button>`;
+    return `<button class="button${active ? " active" : ""}" data-range-preset="${p.keys}"${tipAttr(`${midiName(p.low)}–${midiName(p.high)}`)}>${p.keys} keys</button>`;
   }).join("");
   const detecting = midiRange.isDetecting();
   return `${presets}

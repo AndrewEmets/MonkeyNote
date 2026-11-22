@@ -53,6 +53,16 @@ const MODES = [
   ["attack", "bolt"],
   ["zen", "mountain"],
 ];
+const TIPS = {
+  default: "read the notes and play them",
+  memory: "see a few notes, then play them from memory once they hide",
+  ear: "hear each note and play it back; the staff stays hidden",
+  notes: "play a set number of notes",
+  time: "play as many notes as you can before time runs out",
+  attack: "notes scroll toward a line: play each one before it gets there",
+  zen: "endless practice, no scoring pressure (shift + enter to finish)",
+};
+const lengthTip = { notesCount: (v) => `${v} notes per test`, timeLimit: (v) => `${v} seconds per test`, attackSpeed: (v) => `start at ${v} notes per minute` };
 const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key per clef
 // Settings that need a new test vs. ones that only change how it looks.
 const RESTART_KEYS = new Set([
@@ -102,7 +112,7 @@ export function mount(container) {
     <div class="results" hidden></div>
     <div class="midi-menu" hidden></div>
     <div class="piano-wrap"></div>
-    <button class="restart-button" aria-label="restart test" title="restart test">${icon("restart")}</button>`;
+    <button class="restart-button" aria-label="restart test"${tipAttr("restart test (tab)")}>${icon("restart")}</button>`;
   container.appendChild(root);
   els = {
     config: root.querySelector(".config-bar"),
@@ -258,34 +268,35 @@ const memoryApplies = (s) => !s.ear && s.mode !== "attack";
 
 function renderConfig() {
   const s = settings.all();
-  const button = (key, value, label, iconName, active, extra = "") =>
-    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}' ${extra}>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+  const button = (key, value, label, iconName, active, tip = "") =>
+    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'${tipAttr(tip)}>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
   const current = presentationOf(s);
   const presentation = ([p, ic]) => {
+    // Memory is inert in attack mode; aria-disabled (not disabled) so the tooltip still shows on hover.
     const inert = p === "memory" && s.mode === "attack";
-    const extra = inert ? `disabled title="memory has no effect in attack mode"` : "";
-    return `<button class="text-button${current === p ? " active" : ""}" data-action="presentation" data-value="${p}" ${extra}>${icon(ic)}<span>${p}</span></button>`;
+    const tip = inert ? "memory has no effect in attack mode" : TIPS[p];
+    return `<button class="text-button${current === p ? " active" : ""}${inert ? " inert" : ""}" data-action="presentation" data-value="${p}"${inert ? ' aria-disabled="true"' : ""}${tipAttr(tip)}>${icon(ic)}<span>${p}</span></button>`;
   };
   const [valueKey, values] = MODE_VALUES[s.mode] ?? [];
   const customLength = valueKey && !values.includes(s[valueKey]);
   const lengths = valueKey
-    ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("")}${
+    ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v, lengthTip[valueKey](v))).join("")}${
         CUSTOM_LENGTH[valueKey]
-          ? `<button class="text-button${customLength ? " active" : ""}" data-action="length-custom" title="custom ${CUSTOM_LENGTH[valueKey].title}">${customLength ? s[valueKey] : icon("wrench")}</button>`
+          ? `<button class="text-button${customLength ? " active" : ""}" data-action="length-custom"${tipAttr(`custom ${CUSTOM_LENGTH[valueKey].title}`)}>${customLength ? s[valueKey] : icon("wrench")}</button>`
           : ""
       }</div>`
     : "";
   const customBatch = !MEMORY_BATCHES.includes(s.memoryBatch);
   const batch =
     s.memory && memoryApplies(s)
-      ? `<div class="divider"></div><div class="group" title="notes to memorize at a time"><span class="group-icon">${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) =>
-          button("memoryBatch", v, v, null, s.memoryBatch === v),
-        ).join("")}<button class="text-button${customBatch ? " active" : ""}" data-action="memory-custom" title="custom batch size">${customBatch ? s.memoryBatch : icon("wrench")}</button></div>`
+      ? `<div class="divider"></div><div class="group"><span class="group-icon"${tipAttr("notes to memorize at a time")}>${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) =>
+          button("memoryBatch", v, v, null, s.memoryBatch === v, `memorize ${v} notes at a time`),
+        ).join("")}<button class="text-button${customBatch ? " active" : ""}" data-action="memory-custom"${tipAttr("custom batch size")}>${customBatch ? s.memoryBatch : icon("wrench")}</button></div>`
       : "";
   els.config.innerHTML = `
     <div class="group">${PRESENTATIONS.map(presentation).join("")}</div>
     <div class="divider"></div>
-    <div class="group">${MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode)).join("")}</div>
+    <div class="group">${MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode, TIPS[mode])).join("")}</div>
     ${lengths}
     ${batch}`;
 }
@@ -295,7 +306,7 @@ async function onConfigClick(e) {
   if (!btn) return;
   btn.blur();
   if (btn.dataset.key) settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
-  else if (btn.dataset.action === "presentation") setPresentation(btn.dataset.value);
+  else if (btn.dataset.action === "presentation" && !btn.classList.contains("inert")) setPresentation(btn.dataset.value);
   else if (btn.dataset.action === "memory-custom") {
     const n = await askNumber({ title: "notes to memorize", value: settings.get("memoryBatch"), min: 1, max: 32 });
     if (n !== null) settings.set("memoryBatch", n);
@@ -613,8 +624,8 @@ function renderMeta() {
   const levelLabel = rank.level ? rank.level.id : "custom";
   const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
   const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
-  const chords = `<button class="meta-pick" data-pick="chords" title="single notes or chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
-  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
+  const chords = `<button class="meta-pick" data-pick="chords"${tipAttr("single notes, or chords and how many")}>${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
+  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef"${tipAttr("clef: treble, bass or grand staff")}>${clef}</button> · <button class="meta-pick" data-pick="keySignature"${tipAttr("key signature")}>${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
 }
 
 function onMetaClick(e) {
@@ -800,7 +811,7 @@ function renderCounter() {
     const a = test.attack;
     const cleared = engine.results.filter((r) => !r.missed).length;
     const hearts = Array.from({ length: ATTACK_LIVES }, (_, i) => `<span class="life${i < a.lives ? "" : " lost"}">${icon("heart")}</span>`).join("");
-    const html = `<span class="lives">${hearts}</span><span>${cleared}</span><span class="speed">${Math.round(a.npm)} npm</span>`;
+    const html = `<span class="lives"${tipAttr("lives: a note reaching the line costs one")}>${hearts}</span><span${tipAttr("notes played in time")}>${cleared}</span><span class="speed"${tipAttr("current speed; it keeps rising")}>${Math.round(a.npm)} npm</span>`;
     if (els.counter.dataset.html !== html) {
       els.counter.innerHTML = html;
       els.counter.dataset.html = html;
@@ -812,7 +823,7 @@ function renderCounter() {
   const { mode, timeLimit } = test.cfg;
   const main =
     mode === "notes" ? `${engine.index}/${engine.items.length}` : mode === "time" ? Math.max(0, Math.ceil(timeLimit - (performance.now() - engine.startTime) / 1000)) : engine.index;
-  const html = `<span>${main}</span>${test.pace ? `<span class="speed">pace ${Math.round(test.pace)} npm</span>` : ""}`;
+  const html = `<span>${main}</span>${test.pace ? `<span class="speed"${tipAttr("speed of the pace caret")}>pace ${Math.round(test.pace)} npm</span>` : ""}`;
   if (els.counter.dataset.html !== html) {
     els.counter.innerHTML = html;
     els.counter.dataset.html = html;

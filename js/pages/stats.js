@@ -3,6 +3,7 @@
 import { settings } from "../settings.js";
 import { keyName, pitchName, pitchFromMidi } from "../music.js";
 import { icon } from "../icons.js";
+import { tipAttr } from "../tooltip.js";
 import { createPiano } from "../piano.js";
 import { barChart, heatmap, pointsChart } from "../charts.js";
 import { loadPbs, loadResults, loadStats, notationKey } from "../history.js";
@@ -99,7 +100,7 @@ function summaryCard(stats) {
       <div class="summary-divider"></div>
       <div class="summary-stats">
         <div class="stat"><div class="stat-label">tests started</div><div class="stat-value">${stats.started}</div></div>
-        <div class="stat" title="${restarts} restarts per completed test"><div class="stat-label">tests completed</div><div class="stat-value">${stats.completed}</div></div>
+        <div class="stat"${tipAttr(`${restarts} restarts per completed test`)}><div class="stat-label">tests completed</div><div class="stat-value">${stats.completed}</div></div>
         <div class="stat"><div class="stat-label">time playing</div><div class="stat-value">${formatDuration(stats.timeMs)}</div></div>
       </div>
     </section>`;
@@ -120,12 +121,12 @@ function bestsCard() {
     const pb = pbs[`${group}|${mode}|${value}`];
     const metric = mode === "attack" ? "score" : "npm";
     if (!pb?.[metric]) return `<div class="pb-cell"><div class="pb-label">${label}</div><div class="pb-value">-</div><div class="pb-acc">-</div></div>`;
-    return `<div class="pb-cell" title="${pb[metric]} ${metric} · ${pb.acc}% acc · ${formatDate(pb.date)}"><div class="pb-label">${label}</div><div class="pb-value">${pb[metric]}</div><div class="pb-acc">${pb.acc}%</div></div>`;
+    return `<div class="pb-cell"${tipAttr(`${pb[metric]} ${metric} · ${pb.acc}% acc · ${formatDate(pb.date)}`)}><div class="pb-label">${label}</div><div class="pb-value">${pb[metric]}</div><div class="pb-acc">${pb.acc}%</div></div>`;
   };
   const rows = [...LEVELS.map((l) => l.id), "practice"].map(
     (group) => `
       <div class="pb-row">
-        <div class="pb-mode" title="${LEVELS.find((l) => l.id === group)?.text ?? "any other settings"}">${group === "practice" ? "practice" : `${icon("crown")}${group}`}</div>
+        <div class="pb-mode"${tipAttr(LEVELS.find((l) => l.id === group)?.text ?? "any other settings")}>${group === "practice" ? "practice" : `${icon("crown")}${group}`}</div>
         <div class="pb-cells">${columns.map(([mode, value, label]) => cell(group, mode, value, label)).join("")}</div>
       </div>`,
   );
@@ -156,7 +157,7 @@ function filteredSections(results) {
   const timeMs = results.reduce((a, r) => a + (r.seconds ?? 0) * 1000, 0);
   const notes = results.reduce((a, r) => a + (r.notes ?? 0), 0);
   const slope = speedPerHour(results);
-  const stat = (label, value, title = "") => `<div class="stat"${title ? ` title="${title}"` : ""}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+  const stat = (label, value, title = "") => `<div class="stat"${tipAttr(title)}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
   return `
     <section class="stats-section">
       <div class="chart-toolbar">
@@ -303,7 +304,7 @@ function drawWeakNotes(results) {
     if (!key) continue;
     key.classList.add("tested");
     key.style.setProperty("--miss", a.misses ? 0.25 + 0.75 * (a.misses / a.attempts) : 0);
-    key.title = `${pitchName(pitchFromMidi(midi))}: ${a.misses}/${a.attempts} missed (${round((a.misses / a.attempts) * 100)}%)`;
+    key.dataset.tip = `${pitchName(pitchFromMidi(midi))}: ${a.misses}/${a.attempts} missed (${round((a.misses / a.attempts) * 100)}%)`;
   }
   const weakest = [...agg.entries()]
     .filter(([, a]) => a.misses && a.attempts >= 3)

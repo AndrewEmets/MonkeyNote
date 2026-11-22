@@ -2,6 +2,7 @@
 import { keyName, pitchName } from "./music.js";
 import { createPiano } from "./piano.js";
 import { icon } from "./icons.js";
+import { tipAttr } from "./tooltip.js";
 
 // MonkeyType-style consistency: maps the coefficient of variation to 0..100.
 const kogasa = (cv) => 100 * (1 - Math.tanh(cv + cv ** 3 / 3 + cv ** 5 / 5));
@@ -67,12 +68,12 @@ const testType = (cfg, fifths) => {
 };
 
 const stat = (label, value, title = "") =>
-  `<div class="stat"${title ? ` title="${title}"` : ""}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+  `<div class="stat"${tipAttr(title)}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
 
 /** Render the results screen into `container`. */
 export function renderResults(container, r, { cfg, fifths, isPb, rank = null, note = "" }) {
   const misses = r.pitches.filter((p) => p.misses).sort((a, b) => b.misses / b.attempts - a.misses / a.attempts || b.misses - a.misses);
-  const crown = isPb ? ` <span class="pb" title="new personal best">${icon("crown")}</span>` : "";
+  const crown = isPb ? ` <span class="pb"${tipAttr("new personal best")}>${icon("crown")}</span>` : "";
   const attack = cfg.mode === "attack";
   const headline = attack
     ? stat(`score${crown}`, r.score, "notes (or chords) played before running out of lives")
@@ -126,7 +127,7 @@ function renderMissMap(el, pitches) {
     if (!key) continue;
     key.classList.add("tested");
     key.style.setProperty("--miss", p.misses ? 0.3 + 0.7 * (p.misses / p.attempts) : 0);
-    key.title = `${pitchName(p.pitch)}: ${p.misses}/${p.attempts} missed`;
+    key.dataset.tip = `${pitchName(p.pitch)}: ${p.misses}/${p.attempts} missed`;
   }
 }
 
