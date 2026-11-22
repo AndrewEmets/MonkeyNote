@@ -43,7 +43,7 @@ export const DEFS = {
   chordPower: {
     title: "chord density",
     icon: "chords",
-    text: "How often items are chords, and how full. Each item gets 1 + floor(r^p × max) notes for a random r: even makes every size equally likely; lower densities mean more single notes, higher ones more full chords.",
+    text: "How many chords versus single notes. Lower means more single notes, higher means fuller chords.",
     labels: { 3: "mostly single", 2: "sparse", 1: "even", 0.5: "dense", 0.33: "mostly full" },
     wide: true,
   },
@@ -54,6 +54,7 @@ export const DEFS = {
   // appearance
   noteSize: { title: "note size", icon: "size", text: "Size of the staff and notes." },
   staffLines: { title: "staff lines", icon: "lines", text: "How many lines of notes to show at once, so you can read ahead." },
+  barLines: { title: "divider lines", icon: "lines", text: "A thin line between every 4 notes, to help you keep your place.", labels: { 0: "off", 4: "every 4 notes" } },
   caretStyle: { title: "caret style", icon: "caret", text: "Shape of the marker on the note to play next.", labels: { line: "|", block: "▮", outline: "▯", underline: "_" } },
   smoothCaret: { title: "smooth caret", icon: "wave", text: "Animate the caret as it moves between notes.", labels: onOff },
   flipColors: { title: "flip test colors", icon: "eye", text: "Show notes still to play in the bright text color and played notes dimmed.", labels: onOff },

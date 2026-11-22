@@ -38,6 +38,7 @@ export const OPTIONS = {
   // appearance
   noteSize: ["small", "medium", "large", "xl"],
   staffLines: [1, 2, 3],
+  barLines: [0, 4],
   caretStyle: ["off", "line", "block", "outline", "underline"],
   smoothCaret: [false, true],
   flipColors: [false, true],
@@ -82,6 +83,7 @@ export const DEFAULTS = {
   noteNames: false,
   noteSize: "medium",
   staffLines: 2,
+  barLines: 4,
   caretStyle: "line",
   smoothCaret: true,
   flipColors: false,

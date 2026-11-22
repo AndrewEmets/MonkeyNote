@@ -51,7 +51,7 @@ const RESTART_KEYS = new Set([
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
   "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordPower",
 ]);
-const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames"]);
+const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames", "barLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
 
 // Results-screen MIDI menu: white keys (any octave) act as buttons. Changes wait for C to restart.
@@ -248,7 +248,7 @@ function renderConfig() {
   const custom = !MEMORY_BATCHES.includes(s.memoryBatch);
   const batch =
     s.memory && memoryApplies(s)
-      ? `<div class="divider"></div><div class="group" title="notes to memorize at a time">${icon("eyeOff")}${MEMORY_BATCHES.map((v) =>
+      ? `<div class="divider"></div><div class="group" title="notes to memorize at a time"><span class="group-icon">${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) =>
           button("memoryBatch", v, v, null, s.memoryBatch === v),
         ).join("")}<button class="text-button${custom ? " active" : ""}" data-action="memory-custom">${custom ? s.memoryBatch : "custom"}</button></div>`
       : "";
@@ -418,7 +418,7 @@ function drawAttack() {
     if (a.distance === null) a.distance = x0 - (hitX + 0.35 * (W - hitX)); // first note starts a third of the way in
     base = Math.max(0, Math.floor((a.distance - (x0 - hitX)) / slot) - 1);
     end = Math.min(engine.items.length, base + Math.ceil((W - hitX) / slot) + 8);
-    handle = renderStaff(els.staff, { ...layout, items: engine.items.slice(base, end), width, staffSpace, caretStyle: s.caretStyle, smoothCaret: false });
+    handle = renderStaff(els.staff, { ...layout, items: engine.items.slice(base, end), indexOffset: base, barEvery: s.barLines, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: false });
     for (let k = base; k < end; k++) handle.setState(k - base, stateOf(k));
     handle.setCaret(engine.index - base);
     view.attack = { x0, hitX, slot };
@@ -526,13 +526,14 @@ function restart() {
   scheduleEarPlay(500);
 }
 
-/** Line above the staff: clef and key are dropdowns (they change the settings), then the task hint. */
+/** Line above the staff: clef, key (and chord density) are dropdowns that change the settings, then the task hint. */
 function renderMeta() {
   const { cfg, fifths, attack } = test;
   const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
   const key = `${keyName(fifths)}${cfg.keySignature === "random" ? " (random)" : ""}`;
   const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
-  els.meta.innerHTML = `<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button>${task ? ` · ${task}` : ""}`;
+  const density = cfg.chords ? ` · <button class="meta-pick" data-pick="chordPower" title="change chord density">chords: ${valueLabel("chordPower", cfg.chordPower)}</button>` : "";
+  els.meta.innerHTML = `<button class="meta-pick" data-pick="clef" title="change clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature" title="change key">${key}</button>${density}${task ? ` · ${task}` : ""}`;
 }
 
 function onMetaClick(e) {
@@ -707,7 +708,7 @@ function exitFocusMode() {
 
 // ---- staff lines ----
 
-const LINE_END_MS = 260; // let the last note of a line (or batch) finish animating before moving on
+const LINE_END_MS = 320; // line change: rows slide up / fade (matches the CSS transition)
 let pendingRedraw = null;
 
 /**
@@ -715,9 +716,10 @@ let pendingRedraw = null;
  * Normal: the current item's line, then the next ones (staff lines setting).
  * Memory (without ear): only the current batch of N notes (memory batch setting), wrapped if needed.
  */
-function draw() {
+function draw({ enter = null } = {}) {
   clearTimeout(pendingRedraw);
   pendingRedraw = null;
+  els.staff.classList.remove("sliding", "leaving");
   if (!test || !els.staff.clientWidth) return;
   if (test.attack) return drawAttack();
   const s = settings.all();
@@ -751,10 +753,13 @@ function draw() {
     holder.className = "staff-row";
     els.staff.appendChild(holder);
     const items = engine.items.slice(a, b);
-    const handle = renderStaff(holder, { ...layout, items, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
+    const handle = renderStaff(holder, { ...layout, items, indexOffset: a, barEvery: s.barLines, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
     items.forEach((_, k) => handle.setState(k, engine.states[a + k]));
-    return { handle, startIndex: a, count: b - a };
+    return { handle, holder, startIndex: a, count: b - a };
   });
+  // After a line change: fade in the rows that weren't on screen before.
+  if (enter === "all") lines.forEach((ln) => ln.holder.classList.add("entering"));
+  else if (enter === "last" && lines.length) lines[lines.length - 1].holder.classList.add("entering");
   const locate = (index) => {
     const line = lines.find((ln) => index >= ln.startIndex && index < ln.startIndex + ln.count);
     return line ? { line, k: index - line.startIndex } : null;
@@ -785,7 +790,7 @@ function draw() {
   // If a redraw is waiting (end-of-line animation), do it now and hand the call to the new view.
   const flush = () => {
     if (!pendingRedraw) return false;
-    draw();
+    draw({ enter: "last" });
     return true;
   };
 
@@ -795,9 +800,18 @@ function draw() {
       const prev = locate(prevIndex);
       prev?.line.handle.setState(prev.k, engine.states[prevIndex]);
       if (pageOf(engine.index) !== page) {
-        // Last note of the line or batch: show it played and the caret past it, then move on.
-        prev?.line.handle.setCaret(prev.k + 1);
-        pendingRedraw = setTimeout(draw, LINE_END_MS);
+        // Line change. If the next line is on screen, the caret moves to it while the rows slide up
+        // and the finished line fades out; otherwise (memory batch, one staff line) the line fades out.
+        const next = locate(engine.index);
+        if (next) {
+          placeCaret(engine.index);
+          els.staff.style.setProperty("--slide", `${lines[0].holder.offsetTop - next.line.holder.offsetTop}px`);
+          els.staff.classList.add("sliding");
+        } else {
+          prev?.line.handle.setCaret(prev.k + 1);
+          els.staff.classList.add("leaving");
+        }
+        pendingRedraw = setTimeout(() => draw({ enter: next ? "last" : "all" }), LINE_END_MS);
         return;
       }
       placeCaret(engine.index);

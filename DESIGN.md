@@ -19,9 +19,11 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 
 - **Top bar**: logo, nav icons (test, stats, settings).
 - **Test config bar**: toggles (chords, memory, ear) | mode (notes, time, attack, zen, custom) | mode values.
-- **Above the staff**: clef and key are clickable dropdowns that change those settings.
+- **Above the staff**: clef, key and (with chords on) chord density are clickable dropdowns that change those settings.
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
-  note finishes its animation and the caret moves past it before the next line appears. Played notes take
+  note finishes its animation; the caret moves to the next line while the rows slide up and the finished
+  line fades out (or, with one visible line, it fades out and the next fades in). Thin divider lines mark
+  every 4 notes (setting). Played notes take
   the text color; notes that needed correction the error-extra color.
 - **Below test**: restart button; on-screen keyboard when enabled.
 - **Footer**: shortcut hints, theme name (click to open theme picker).
@@ -136,7 +138,7 @@ Modeled on MonkeyType's account page, all from local data:
 
 ## Settings page
 
-Same long sectioned page with button groups and a search/jump list:
+Same long sectioned page with button groups, a search box (settings and theme names) and a jump list:
 
 - **behavior**: (reserved) quick restart, test length defaults.
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.

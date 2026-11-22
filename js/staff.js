@@ -134,6 +134,20 @@ export function renderStaff(container, opts) {
 
   // Items.
   const slotLeft = (k) => head.itemsStart + k * slot;
+
+  // Divider lines every `barEvery` items (counted from the start of the test, so they stay put
+  // across lines), just left of the item's accidental room. Grand staff: one line through both staves.
+  if (opts.barEvery) {
+    const tops = Object.values(geo.tops);
+    const y1 = Math.min(...tops);
+    const y2 = Math.max(...tops) + 4;
+    const offset = opts.indexOffset ?? 0;
+    for (let k = 1; k < opts.items.length; k++) {
+      if ((offset + k) % opts.barEvery !== 0) continue;
+      const x = r(slotLeft(k) - 0.3);
+      el("line", { x1: x, x2: x, y1: r(y1), y2: r(y2), "stroke-width": ENG.barline, class: "barline divider" }, parent);
+    }
+  }
   const itemNodes = opts.items.map((item, k) => {
     const g = el("g", { class: "item pending", "data-index": k, "data-midi": item.notes.map(midiOf).join(" ") }, parent);
     drawItem(g, item, slotLeft(k) + ACC_ROOM, (d) => yOf(item.staff, d), opts.fifths, opts.noteNames);

@@ -19,7 +19,7 @@ const SECTIONS = [
     icon: "note",
     rows: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordPower", "noteNames"],
   },
-  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "caretStyle", "smoothCaret", "flipColors", "fontFamily"] },
+  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "barLines", "caretStyle", "smoothCaret", "flipColors", "fontFamily"] },
   { id: "theme", title: "theme", icon: "palette", rows: ["randomTheme", customThemeRow, themeGrid] },
   { id: "danger", title: "danger zone", icon: "warning", rows: [dangerRows] },
 ];
@@ -41,7 +41,9 @@ export function mount(container) {
   root = document.createElement("div");
   root.className = "settings-page";
   root.innerHTML = `
+    <div class="settings-search">${icon("search")}<input type="search" placeholder="search settings" aria-label="search settings" spellcheck="false" /></div>
     <div class="settings-nav">${SECTIONS.map((s) => `<button class="button" data-jump="${s.id}">${s.title}</button>`).join("")}</div>
+    <div class="settings-no-match" hidden>no settings match</div>
     ${SECTIONS.map(sectionHtml).join("")}`;
   container.appendChild(root);
   root.addEventListener("click", onClick);
@@ -230,8 +232,45 @@ function onClick(e) {
   }
 }
 
+/**
+ * Settings search: show only rows whose title or description contain every word (a section title
+ * match shows the whole section). In the theme section, theme names are searched too.
+ */
+function filterSettings(query) {
+  const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  const matches = (text) => words.every((w) => text.toLowerCase().includes(w));
+  for (const section of root.querySelectorAll(".settings-section")) {
+    const titleHit = !words.length || matches(section.querySelector(".section-title").textContent);
+    let any = false;
+    for (const row of section.querySelectorAll(".setting")) {
+      const show = titleHit || matches(row.textContent);
+      row.classList.toggle("search-hidden", !show);
+      // The custom theme colors belong to the row before them.
+      if (row.nextElementSibling?.classList.contains("custom-colors")) row.nextElementSibling.classList.toggle("search-hidden", !show);
+      any ||= show;
+    }
+    const grid = section.querySelector(".theme-grid");
+    if (grid) {
+      const q = words.join("_");
+      let themeHit = false;
+      for (const btn of grid.querySelectorAll(".theme-button")) {
+        const show = titleHit || btn.dataset.theme.includes(q);
+        btn.classList.toggle("search-hidden", !show);
+        themeHit ||= show;
+      }
+      grid.classList.toggle("search-hidden", !themeHit);
+      section.querySelector(".theme-search").classList.toggle("search-hidden", !titleHit);
+      any ||= themeHit;
+    }
+    section.classList.toggle("search-hidden", !any);
+  }
+  root.querySelector(".settings-nav").classList.toggle("search-hidden", words.length > 0);
+  root.querySelector(".settings-no-match").hidden = !words.length || !!root.querySelector(".settings-section:not(.search-hidden)");
+}
+
 function onInput(e) {
-  if (e.target.matches(".theme-search input")) {
+  if (e.target.matches(".settings-search input")) filterSettings(e.target.value);
+  else if (e.target.matches(".theme-search input")) {
     const q = e.target.value.trim().toLowerCase().replaceAll(" ", "_");
     for (const btn of root.querySelectorAll(".theme-button")) btn.hidden = !btn.dataset.theme.includes(q);
   } else if (e.target.dataset.color) {

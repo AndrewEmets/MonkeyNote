@@ -152,6 +152,14 @@ a {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
+}
+
+.config-bar .group-icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.25rem 0 0.5rem;
+  color: var(--sub-color);
 }
 
 .config-bar .divider {
@@ -392,6 +400,43 @@ svg.staff .caret-block.blink {
 }
 
 /* settings page */
+
+.settings-search,
+.theme-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--sub-alt-color);
+  color: var(--sub-color);
+  border-radius: var(--radius);
+  padding: 0 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.settings-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-color);
+  caret-color: var(--caret-color);
+  font: inherit;
+  padding: 0.75rem 0;
+}
+
+.settings-search input::placeholder {
+  color: var(--sub-color);
+}
+
+.settings-no-match {
+  color: var(--sub-color);
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.search-hidden {
+  display: none !important;
+}
 
 .settings-nav {
   display: flex;
@@ -866,6 +911,37 @@ body.focus-mode .restart-button {
 
 .staff-row + .staff-row {
   margin-top: 0.5rem;
+}
+
+/* line change: rows slide up while the finished line fades out (timing matches LINE_END_MS) */
+.staff-wrap.sliding .staff-row {
+  transform: translateY(var(--slide));
+  transition: transform 0.32s cubic-bezier(0.3, 0, 0.2, 1), opacity 0.32s ease;
+}
+
+.staff-wrap.sliding .staff-row:first-child {
+  opacity: 0;
+}
+
+.staff-wrap.leaving .staff-row {
+  transform: translateY(-1rem);
+  opacity: 0;
+  transition: transform 0.32s cubic-bezier(0.3, 0, 0.2, 1), opacity 0.32s ease;
+}
+
+.staff-row.entering {
+  animation: row-in 0.32s cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
+svg.staff .divider {
+  opacity: 0.6;
 }
 
 .placeholder {
