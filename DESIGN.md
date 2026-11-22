@@ -123,7 +123,7 @@ restart immediately, as in MonkeyType.)
 - **consistency**: evenness of time between items (MonkeyType's formula on the coefficient of variation).
 - Speed-over-time chart (npm, wrong-note marks) with hover tooltip.
 - Missed-notes map: a piano tinted by miss rate per pitch, plus the most-missed list.
-- Personal bests per configuration (mode + length + clef + accidentals + ledger lines + chords), stored locally.
+- Personal bests per ranked level + mode + length, plus practice (see Ranked levels), stored locally.
 
 ## Ranked levels
 
@@ -153,8 +153,7 @@ light protocols (e.g. ROLI/Lumi SysEx) aren't covered.
 Modeled on MonkeyType's account page, all from local data:
 
 - **Summary**: tests started, tests completed, time playing (abandoned tests count toward time), since date.
-- **Personal bests**: notes 10/25/50/100, time 15/30/60/120, attack score per start speed; best across all
-  notation settings, details on hover.
+- **Personal bests**: one row per ranked level plus practice, for notes 16/32 and time 30/60.
 - **Activity heatmap**: tests per day over the last 12 months.
 - **Filters** (apply to everything below): all / current notation settings; last day / week / month /
   3 months / all time; mode.
