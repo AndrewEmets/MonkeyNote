@@ -27,8 +27,8 @@ export const modeValue = (cfg) => ({ notes: cfg.notesCount, time: cfg.timeLimit,
 export function notationKey(cfg) {
   const style = cfg.chordStyle === "random" ? `chords${cfg.maxChordNotes}` : cfg.chordStyle;
   const chords = cfg.chords ? `${style}^${cfg.chordPower ?? 1}` : "single";
-  const memory = cfg.memory && cfg.mode !== "attack"; // memory has no effect in attack mode
-  return [cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, memory && "memory", cfg.ear && "ear"].filter(Boolean).join("|");
+  const ear = cfg.ear && `ear${cfg.earBatch ?? 1}`;
+  return [cfg.clef, cfg.accidentals, `ledger${cfg.ledgerLines}`, chords, cfg.memory && `memory${cfg.memoryBatch ?? ""}`, ear].filter(Boolean).join("|");
 }
 
 /** A test configuration: mode, length and notation (used for pace-caret averages and the stats filter). */

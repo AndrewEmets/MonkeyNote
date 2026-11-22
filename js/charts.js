@@ -156,7 +156,7 @@ export function heatmap(el, counts, { weeks = 53, dayKey, formatDate }) {
       const key = dayKey(day.getTime());
       const c = counts.get(key) ?? 0;
       total += c;
-      cells += `<span class="cell l${level(c)}" style="grid-column:${w + 1};grid-row:${d + 1}" data-tip="${c} test${c === 1 ? "" : "s"} on ${formatDate(day.getTime())}"></span>`;
+      cells += `<span class="cell l${level(c)}" style="grid-column:${w + 1};grid-row:${d + 1}" data-cell="${c} test${c === 1 ? "" : "s"} on ${formatDate(day.getTime())}"></span>`;
       if (d === 0 && day.getMonth() !== lastMonth) {
         lastMonth = day.getMonth();
         monthStarts.push({ w, label: day.toLocaleDateString("en-GB", { month: "short" }).toLowerCase() });
@@ -176,7 +176,7 @@ export function heatmap(el, counts, { weeks = 53, dayKey, formatDate }) {
     const cell = e.target.closest(".cell");
     if (!cell) return tip.hide();
     const box = el.getBoundingClientRect();
-    tip.show(esc(cell.dataset.tip), cell.getBoundingClientRect().left - box.left, el.clientWidth);
+    tip.show(esc(cell.dataset.cell), cell.getBoundingClientRect().left - box.left, el.clientWidth);
   });
   el.querySelector(".heatmap").addEventListener("mouseleave", tip.hide);
   return total;

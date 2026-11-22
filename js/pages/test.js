@@ -53,22 +53,12 @@ const MODES = [
   ["attack", "bolt"],
   ["zen", "mountain"],
 ];
-const TIPS = {
-  default: "read the notes and play them",
-  memory: "see a few notes, then play them from memory once they hide",
-  ear: "hear each note and play it back; the staff stays hidden",
-  notes: "play a set number of notes",
-  time: "play as many notes as you can before time runs out",
-  attack: "notes scroll toward a line: play each one before it gets there",
-  zen: "endless practice, no scoring pressure (shift + enter to finish)",
-};
-const lengthTip = { notesCount: (v) => `${v} notes per test`, timeLimit: (v) => `${v} seconds per test`, attackSpeed: (v) => `start at ${v} notes per minute` };
 const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key per clef
 // Settings that need a new test vs. ones that only change how it looks.
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "attackSpeed", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
+  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "earBatch", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames", "barLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -112,7 +102,7 @@ export function mount(container) {
     <div class="results" hidden></div>
     <div class="midi-menu" hidden></div>
     <div class="piano-wrap"></div>
-    <button class="restart-button" aria-label="restart test"${tipAttr("restart test (tab)")}>${icon("restart")}</button>`;
+    <button class="restart-button" aria-label="restart test">${icon("restart")}</button>`;
   container.appendChild(root);
   els = {
     config: root.querySelector(".config-bar"),
@@ -262,43 +252,40 @@ function stopAutoplay() {
 // ---- config bar ----
 
 const MEMORY_BATCHES = [2, 4, 8];
+const EAR_BATCHES = [1, 2, 3];
 
-/** Memory has no effect in ear mode (ear already hides notes) or in attack mode (notes vanish anyway). */
-const memoryApplies = (s) => !s.ear && s.mode !== "attack";
 
 function renderConfig() {
   const s = settings.all();
-  const button = (key, value, label, iconName, active, tip = "") =>
-    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'${tipAttr(tip)}>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+  const button = (key, value, label, iconName, active) =>
+    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
   const current = presentationOf(s);
-  const presentation = ([p, ic]) => {
-    // Memory is inert in attack mode; aria-disabled (not disabled) so the tooltip still shows on hover.
-    const inert = p === "memory" && s.mode === "attack";
-    const tip = inert ? "memory has no effect in attack mode" : TIPS[p];
-    return `<button class="text-button${current === p ? " active" : ""}${inert ? " inert" : ""}" data-action="presentation" data-value="${p}"${inert ? ' aria-disabled="true"' : ""}${tipAttr(tip)}>${icon(ic)}<span>${p}</span></button>`;
-  };
+  const presentation = ([p, ic]) =>
+    `<button class="text-button${current === p ? " active" : ""}" data-action="presentation" data-value="${p}">${icon(ic)}<span>${p}</span></button>`;
   const [valueKey, values] = MODE_VALUES[s.mode] ?? [];
   const customLength = valueKey && !values.includes(s[valueKey]);
   const lengths = valueKey
-    ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v, lengthTip[valueKey](v))).join("")}${
+    ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("")}${
         CUSTOM_LENGTH[valueKey]
           ? `<button class="text-button${customLength ? " active" : ""}" data-action="length-custom"${tipAttr(`custom ${CUSTOM_LENGTH[valueKey].title}`)}>${customLength ? s[valueKey] : icon("wrench")}</button>`
           : ""
       }</div>`
     : "";
+  // How many notes at a time: memorized (memory) or heard in a row (ear).
   const customBatch = !MEMORY_BATCHES.includes(s.memoryBatch);
-  const batch =
-    s.memory && memoryApplies(s)
-      ? `<div class="divider"></div><div class="group"><span class="group-icon"${tipAttr("notes to memorize at a time")}>${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) =>
-          button("memoryBatch", v, v, null, s.memoryBatch === v, `memorize ${v} notes at a time`),
-        ).join("")}<button class="text-button${customBatch ? " active" : ""}" data-action="memory-custom"${tipAttr("custom batch size")}>${customBatch ? s.memoryBatch : icon("wrench")}</button></div>`
+  const batch = s.memory
+    ? `<div class="divider"></div><div class="group"><span class="group-icon">${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) =>
+        button("memoryBatch", v, v, null, s.memoryBatch === v),
+      ).join("")}<button class="text-button${customBatch ? " active" : ""}" data-action="memory-custom"${tipAttr("custom batch size")}>${customBatch ? s.memoryBatch : icon("wrench")}</button></div>`
+    : s.ear
+      ? `<div class="divider"></div><div class="group"><span class="group-icon">${icon("ear")}</span>${EAR_BATCHES.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("")}</div>`
       : "";
   els.config.innerHTML = `
     <div class="group">${PRESENTATIONS.map(presentation).join("")}</div>
+    ${batch}
     <div class="divider"></div>
-    <div class="group">${MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode, TIPS[mode])).join("")}</div>
-    ${lengths}
-    ${batch}`;
+    <div class="group">${MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode)).join("")}</div>
+    ${lengths}`;
 }
 
 async function onConfigClick(e) {
@@ -306,7 +293,7 @@ async function onConfigClick(e) {
   if (!btn) return;
   btn.blur();
   if (btn.dataset.key) settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
-  else if (btn.dataset.action === "presentation" && !btn.classList.contains("inert")) setPresentation(btn.dataset.value);
+  else if (btn.dataset.action === "presentation") setPresentation(btn.dataset.value);
   else if (btn.dataset.action === "memory-custom") {
     const n = await askNumber({ title: "notes to memorize", value: settings.get("memoryBatch"), min: 1, max: 32 });
     if (n !== null) settings.set("memoryBatch", n);
@@ -365,19 +352,55 @@ function renderHint() {
 
 // ---- sound: ear mode and replay ----
 
-/** Play the current note or chord (space, the replay button, or the sustain pedal). */
+const EAR_SEQUENCE_GAP_MS = 650; // between notes heard in a row (ear batch of 2 or 3)
+let earSequence = []; // timers of a sequence being played
+
+/** Items heard together in ear mode: the batch (of ear batch size) holding `index`. */
+function earBatchRange(index) {
+  const n = test.cfg.earBatch;
+  const start = Math.floor(index / n) * n;
+  return [start, Math.min(start + n, test.engine.items.length)];
+}
+
+/** Play notes (or chords) one after another, each for a moment. */
+function playSequence(items) {
+  earSequence.forEach(clearTimeout);
+  audio.unlock();
+  earSequence = items.map((item, i) => setTimeout(() => audio.play(item.notes.map(midiOf), 0.9), i * EAR_SEQUENCE_GAP_MS));
+}
+
+/**
+ * Space, the replay button or the sustain pedal: in ear mode, replay the whole batch being heard;
+ * otherwise play the current note or chord.
+ */
 function playCurrent() {
   const engine = test?.engine;
   const item = engine?.items[engine.index];
   if (!item || engine.state === "done") return false;
+  if (test.cfg.ear && test.cfg.earBatch > 1) {
+    const [a, b] = earBatchRange(engine.index);
+    playSequence(engine.items.slice(a, b));
+    return true;
+  }
   audio.unlock();
   return audio.play(item.notes.map(midiOf));
 }
 
-/** In ear mode, play the current item after a short pause (so it doesn't blur into the last note). */
-function scheduleEarPlay(delay) {
+/**
+ * Ear mode: after a short pause, play the next batch ("batch", only when the current note starts one)
+ * or just the current note ("current", e.g. after a wrong note).
+ */
+function scheduleEarPlay(delay, what = "batch") {
   clearTimeout(earTimer);
-  if (test?.cfg.ear) earTimer = setTimeout(playCurrent, delay);
+  if (!test?.cfg.ear) return;
+  const engine = test.engine;
+  if (what === "batch" && engine.index !== earBatchRange(engine.index)[0]) return; // mid-batch: keep going from memory
+  earTimer = setTimeout(() => {
+    if (what === "current") {
+      const item = engine.items[engine.index];
+      if (item) playSequence([item]);
+    } else playCurrent();
+  }, delay);
 }
 
 // ---- test lifecycle ----
@@ -385,6 +408,7 @@ function scheduleEarPlay(delay) {
 function stopTimers() {
   clearInterval(ticker);
   clearTimeout(earTimer);
+  earSequence.forEach(clearTimeout);
   if (test?.attack) cancelAnimationFrame(test.attack.raf);
   if (test) cancelAnimationFrame(test.paceRaf);
   ticker = earTimer = null;
@@ -478,8 +502,9 @@ function onAttackMiss(now) {
     return false;
   }
   view.markMissed(index);
+  if (test.cfg.memory) view.reveal(index); // a missed note must be played, so it can't stay hidden
   a.recover = { phase: "spring", start: now, from: a.distance, to: x0 + index * slot - (hitX + ATTACK_BACKOFF_SLOTS * slot) };
-  scheduleEarPlay(200);
+  scheduleEarPlay(200, "current");
   return true;
 }
 
@@ -510,11 +535,15 @@ function drawAttack() {
   };
   // A missed note that is still current shows red until it's played.
   const stateOf = (k) => (k === engine.index && engine.currentMissed ? "pending missed" : engine.states[k]);
+  // Ear: unplayed notes are hidden. Memory: notes come in groups (memory batch); once a group's first
+  // note is played, the rest of it hides. Later groups stay visible until their turn.
   const applyHiding = () => {
-    const { ear, earReference } = test.cfg;
-    if (!ear) return;
+    const { ear, earReference, memory, memoryBatch } = test.cfg;
+    if (!ear && !memory) return;
     for (let k = base; k < end; k++) {
-      if (engine.states[k] === "pending") handle.setHidden(k - base, !(earReference && k === 0) && !test.revealed.has(k));
+      if (engine.states[k] !== "pending") continue;
+      const hide = ear ? !(earReference && k === 0) : engine.index > Math.floor(k / memoryBatch) * memoryBatch;
+      handle.setHidden(k - base, hide && !test.revealed.has(k));
     }
   };
 
@@ -623,9 +652,9 @@ function renderMeta() {
   const rank = rankStatus(cfg, { hints: hintsUsed() });
   const levelLabel = rank.level ? rank.level.id : "custom";
   const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
-  const task = cfg.ear ? "listen, then play what you hear" : attack ? "play each note before it reaches the line" : "";
-  const chords = `<button class="meta-pick" data-pick="chords"${tipAttr("single notes, or chords and how many")}>${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
-  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef"${tipAttr("clef: treble, bass or grand staff")}>${clef}</button> · <button class="meta-pick" data-pick="keySignature"${tipAttr("key signature")}>${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
+  const task = cfg.ear ? "listen, then play what you hear" : "";
+  const chords = `<button class="meta-pick" data-pick="chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
+  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature">${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
 }
 
 function onMetaClick(e) {
@@ -712,7 +741,7 @@ function onWrong(index) {
     const wrongs = (test.wrongs.get(index) ?? 0) + 1;
     test.wrongs.set(index, wrongs);
     if (wrongs >= EAR_REVEAL_AFTER) view?.reveal(index);
-    scheduleEarPlay(450);
+    scheduleEarPlay(450, "current");
   } else if (cfg.memory) view?.reveal(index);
 }
 
@@ -811,7 +840,7 @@ function renderCounter() {
     const a = test.attack;
     const cleared = engine.results.filter((r) => !r.missed).length;
     const hearts = Array.from({ length: ATTACK_LIVES }, (_, i) => `<span class="life${i < a.lives ? "" : " lost"}">${icon("heart")}</span>`).join("");
-    const html = `<span class="lives"${tipAttr("lives: a note reaching the line costs one")}>${hearts}</span><span${tipAttr("notes played in time")}>${cleared}</span><span class="speed"${tipAttr("current speed; it keeps rising")}>${Math.round(a.npm)} npm</span>`;
+    const html = `<span class="lives">${hearts}</span><span>${cleared}</span><span class="speed">${Math.round(a.npm)} npm</span>`;
     if (els.counter.dataset.html !== html) {
       els.counter.innerHTML = html;
       els.counter.dataset.html = html;
@@ -823,7 +852,7 @@ function renderCounter() {
   const { mode, timeLimit } = test.cfg;
   const main =
     mode === "notes" ? `${engine.index}/${engine.items.length}` : mode === "time" ? Math.max(0, Math.ceil(timeLimit - (performance.now() - engine.startTime) / 1000)) : engine.index;
-  const html = `<span>${main}</span>${test.pace ? `<span class="speed"${tipAttr("speed of the pace caret")}>pace ${Math.round(test.pace)} npm</span>` : ""}`;
+  const html = `<span>${main}</span>${test.pace ? `<span class="speed">pace ${Math.round(test.pace)} npm</span>` : ""}`;
   if (els.counter.dataset.html !== html) {
     els.counter.innerHTML = html;
     els.counter.dataset.html = html;

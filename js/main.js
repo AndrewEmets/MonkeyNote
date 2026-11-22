@@ -5,7 +5,7 @@ import { initMidi, keyLights, midiOut, onMidiChange } from "./midi.js";
 import { input } from "./input.js";
 import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
-import { initTooltips, tipAttr } from "./tooltip.js";
+import { initTooltips } from "./tooltip.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
@@ -19,9 +19,9 @@ function renderHeader() {
   document.getElementById("top").innerHTML = `
     <a class="logo" href="#" aria-label="monkeyscore">${icon("logo")}<span class="name">monkeyscore</span></a>
     <nav class="nav">
-      <a href="#" aria-label="start test"${tipAttr("start test")}>${icon("piano")}</a>
-      <a href="#stats" aria-label="stats"${tipAttr("stats")}>${icon("chart")}</a>
-      <a href="#settings" aria-label="settings"${tipAttr("settings")}>${icon("gear")}</a>
+      <a href="#" aria-label="start test">${icon("piano")}</a>
+      <a href="#stats" aria-label="stats">${icon("chart")}</a>
+      <a href="#settings" aria-label="settings">${icon("gear")}</a>
     </nav>`;
 }
 
@@ -30,10 +30,10 @@ function renderFooter() {
     <div class="keytips"><kbd>tab</kbd> - restart test<br /><kbd>esc</kbd> or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>p</kbd> - command line</div>
     <div class="footer-row">
       <div class="footer-links">
-        <a href="https://github.com/AndrewEmets/MonkeyScore" target="_blank" rel="noopener"${tipAttr("source code on github")}>${icon("code")}<span>github</span></a>
+        <a href="https://github.com/AndrewEmets/MonkeyScore" target="_blank" rel="noopener">${icon("code")}<span>github</span></a>
       </div>
       <div class="footer-links">
-        <button class="theme-indicator"${tipAttr("change theme")}>${icon("palette")}<span>${themeLabel(settings.get("theme"))}</span></button>
+        <button class="theme-indicator">${icon("palette")}<span>${themeLabel(settings.get("theme"))}</span></button>
         <span class="version">v${VERSION}</span>
       </div>
     </div>`;

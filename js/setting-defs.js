@@ -66,6 +66,7 @@ export const DEFS = {
     labels: { 3: "mostly single", 2: "sparse", 1: "even", 0.5: "dense", 0.33: "mostly full" },
     wide: true,
   },
+  earBatch: { title: "ear batch", icon: "ear", text: "How many notes ear mode plays in a row before you play them back." },
   memoryBatch: { title: "memory batch", icon: "eyeOff", text: "How many notes to memorize at a time in memory mode." },
   maxChordNotes: { title: "max chord notes", icon: "chords", text: "Largest random chord when chords are turned on in the test bar. (Triads have up to 3 notes, sevenths 4.)" },
   noteNames: { title: "note names", icon: "font", text: "Write each note's name next to it. A helper while you learn to read; turn it off as you improve.", labels: onOff },

@@ -38,6 +38,7 @@ export const OPTIONS = {
   maxChordNotes: [2, 3, 4, 5],
   chordPower: [3, 2, 1, 0.5, 0.33],
   memoryBatch: [2, 4, 8], // or any custom 1..32 (validated separately)
+  earBatch: [1, 2, 3],
   noteNames: [false, true],
   // appearance
   noteSize: ["small", "medium", "large", "xl"],
@@ -88,6 +89,7 @@ export const DEFAULTS = {
   maxChordNotes: 3,
   chordPower: 1,
   memoryBatch: 4,
+  earBatch: 1,
   noteNames: false,
   noteSize: "medium",
   staffLines: 2,

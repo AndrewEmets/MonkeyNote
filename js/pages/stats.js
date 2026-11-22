@@ -100,7 +100,7 @@ function summaryCard(stats) {
       <div class="summary-divider"></div>
       <div class="summary-stats">
         <div class="stat"><div class="stat-label">tests started</div><div class="stat-value">${stats.started}</div></div>
-        <div class="stat"${tipAttr(`${restarts} restarts per completed test`)}><div class="stat-label">tests completed</div><div class="stat-value">${stats.completed}</div></div>
+        <div class="stat"><div class="stat-label">tests completed</div><div class="stat-value">${stats.completed}</div></div>
         <div class="stat"><div class="stat-label">time playing</div><div class="stat-value">${formatDuration(stats.timeMs)}</div></div>
       </div>
     </section>`;
@@ -126,7 +126,7 @@ function bestsCard() {
   const rows = [...LEVELS.map((l) => l.id), "practice"].map(
     (group) => `
       <div class="pb-row">
-        <div class="pb-mode"${tipAttr(LEVELS.find((l) => l.id === group)?.text ?? "any other settings")}>${group === "practice" ? "practice" : `${icon("crown")}${group}`}</div>
+        <div class="pb-mode">${group === "practice" ? "practice" : `${icon("crown")}${group}`}</div>
         <div class="pb-cells">${columns.map(([mode, value, label]) => cell(group, mode, value, label)).join("")}</div>
       </div>`,
   );
@@ -157,7 +157,7 @@ function filteredSections(results) {
   const timeMs = results.reduce((a, r) => a + (r.seconds ?? 0) * 1000, 0);
   const notes = results.reduce((a, r) => a + (r.notes ?? 0), 0);
   const slope = speedPerHour(results);
-  const stat = (label, value, title = "") => `<div class="stat"${tipAttr(title)}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+  const stat = (label, value) => `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
   return `
     <section class="stats-section">
       <div class="chart-toolbar">

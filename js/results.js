@@ -2,7 +2,6 @@
 import { keyName, pitchName } from "./music.js";
 import { createPiano } from "./piano.js";
 import { icon } from "./icons.js";
-import { tipAttr } from "./tooltip.js";
 
 // MonkeyType-style consistency: maps the coefficient of variation to 0..100.
 const kogasa = (cv) => 100 * (1 - Math.tanh(cv + cv ** 3 / 3 + cv ** 5 / 5));
@@ -63,17 +62,17 @@ export function computeResults(engine, cfg, { peakNpm = 0 } = {}) {
 const testType = (cfg, fifths) => {
   const value = { notes: cfg.notesCount, time: cfg.timeLimit, attack: cfg.attackSpeed }[cfg.mode];
   const mode = value ? `${cfg.mode} ${value}` : cfg.mode;
-  const extras = [cfg.chords && "chords", cfg.accidentals === "chromatic" && "chromatic", cfg.memory && cfg.mode !== "attack" && "memory", cfg.ear && "ear"].filter(Boolean);
+  const extras = [cfg.chords && "chords", cfg.accidentals === "chromatic" && "chromatic", cfg.memory && `memory ${cfg.memoryBatch}`, cfg.ear && (cfg.earBatch > 1 ? `ear ${cfg.earBatch}` : "ear")].filter(Boolean);
   return [mode, `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`, extras.join(" · ")].filter(Boolean).join("<br>");
 };
 
 const stat = (label, value, title = "") =>
-  `<div class="stat"${tipAttr(title)}><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
+  `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
 
 /** Render the results screen into `container`. */
 export function renderResults(container, r, { cfg, fifths, isPb, rank = null, note = "" }) {
   const misses = r.pitches.filter((p) => p.misses).sort((a, b) => b.misses / b.attempts - a.misses / a.attempts || b.misses - a.misses);
-  const crown = isPb ? ` <span class="pb"${tipAttr("new personal best")}>${icon("crown")}</span>` : "";
+  const crown = isPb ? ` <span class="pb">${icon("crown")}</span>` : "";
   const attack = cfg.mode === "attack";
   const headline = attack
     ? stat(`score${crown}`, r.score, "notes (or chords) played before running out of lives")
