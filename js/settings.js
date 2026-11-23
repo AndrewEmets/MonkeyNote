@@ -18,6 +18,7 @@ export const OPTIONS = {
   // input
   chordWindow: [50, 100, 150, 250],
   ignoreOctave: ["off", "keyboard", "all"],
+  fitRange: [false, true],
   onScreenKeyboard: [false, true],
   keyLabels: [false, true],
   // sound
@@ -26,7 +27,7 @@ export const OPTIONS = {
   keyLights: ["off", "current", "mistake"],
   keyLightChannel: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
   instrument: ["piano", "soft"],
-  volume: [0, 0.25, 0.5, 0.75, 1],
+  volume: Array.from({ length: 21 }, (_, i) => i / 20), // 0, 5%, ..., 100%
   errorSound: [false, true],
   earReference: [false, true],
   // notation
@@ -72,6 +73,7 @@ export const DEFAULTS = {
   ear: false,
   chordWindow: 100,
   ignoreOctave: "keyboard",
+  fitRange: true,
   onScreenKeyboard: false,
   keyLabels: true,
   playOnPress: "nomidi",

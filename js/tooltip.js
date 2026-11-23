@@ -49,7 +49,7 @@ export function initTooltips() {
   });
   document.addEventListener("focusin", (e) => {
     const el = e.target.closest?.("[data-tip]");
-    if (el) show(el);
+    if (el && e.target.matches(":focus-visible")) show(el);
   });
   document.addEventListener("focusout", hide);
   document.addEventListener("pointerdown", hide, true);

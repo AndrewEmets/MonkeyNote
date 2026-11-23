@@ -9,7 +9,7 @@ let master = null;
 let volume = 0.5;
 let instrument = "piano";
 const held = new Map(); // midi -> voice, for notes played from an input (released on note-off)
-// Optional output that replaces the synth for notes (e.g. the MIDI keyboard's own sound). The error thud stays here.
+// Optional output that replaces the synth for notes (e.g. the MIDI keyboard's own sound), and for the error sound if it has one.
 let router = null;
 
 const freq = (m) => 440 * 2 ** ((m - 69) / 12);
@@ -131,8 +131,9 @@ export const audio = {
     for (const m of midis) releaseVoice(startVoice(m, t, velocity), t + duration);
     return true;
   },
-  /** Short low thud for wrong notes. */
+  /** Short low thud for wrong notes (a drum hit when routed to the MIDI keyboard). */
   error() {
+    if (router?.error) return router.error();
     if (!context(false) || !ready()) return;
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();

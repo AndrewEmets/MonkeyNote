@@ -59,7 +59,7 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "attackSpeed", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave", "earReference", "memoryBatch", "earBatch", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
+  "chordWindow", "ignoreOctave", "fitRange", "earReference", "memoryBatch", "earBatch", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames", "barLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -686,6 +686,7 @@ function restart() {
     chordStyle: cfg.chordStyle,
     maxChordNotes: cfg.maxChordNotes,
     chordPower: cfg.chordPower,
+    midiRange: cfg.fitRange && midiRange.isKnown() ? [midiRange.get().low, midiRange.get().high] : null,
   };
   const engine = new TestEngine({
     items: generateItems(cfg.mode === "notes" ? cfg.notesCount : 100, genOpts),
@@ -713,7 +714,9 @@ function restart() {
   scheduleEarPlay(500);
 }
 
-/** Line above the staff: level, clef, key and single notes / chords, each a dropdown that changes the settings. */
+const ledgerLabel = (n) => (n === 0 ? "no ledger lines" : `${n} ledger line${n > 1 ? "s" : ""}`);
+
+/** Line above the staff: level, clef, key, chords, leaps and ledger lines, each a dropdown that changes the settings. */
 function renderMeta() {
   const { cfg, fifths, minor, harmonic } = test;
   const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
@@ -722,7 +725,9 @@ function renderMeta() {
   const levelLabel = rank.level ? rank.level.id : "custom";
   const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
   const chords = `<button class="meta-pick" data-pick="chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
-  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature">${key}</button> · ${chords}`;
+  const leap = `<button class="meta-pick" data-pick="maxLeap">max leap: ${valueLabel("maxLeap", cfg.maxLeap)}</button>`;
+  const ledger = `<button class="meta-pick" data-pick="ledgerLines">${ledgerLabel(cfg.ledgerLines)}</button>`;
+  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature">${key}</button> · ${chords} · ${leap} · ${ledger}`;
 }
 
 function onMetaClick(e) {
@@ -750,7 +755,7 @@ function onMetaClick(e) {
       { label: "chords", active: s.chords, sub: [column("density", "chordPower"), column("style", "chordStyle"), column("max notes", "maxChordNotes")] },
     ]);
   }
-  const label = (v) => valueLabel(key, v);
+  const label = (v) => (key === "ledgerLines" ? ledgerLabel(v) : valueLabel(key, v));
   openMenu(
     btn,
     OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })),
@@ -759,6 +764,7 @@ function onMetaClick(e) {
 
 const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
 const EAR_NEXT_DELAY_MS = 750; // pause after a right note before the next one plays
+const EAR_WRONG_DELAY_MS = 1100; // pause after a wrong note before the note plays again
 
 function onInput(ev) {
   if (ev.type === "control") {
@@ -808,7 +814,7 @@ function onWrong(index) {
     const wrongs = (test.wrongs.get(index) ?? 0) + 1;
     test.wrongs.set(index, wrongs);
     if (wrongs >= EAR_REVEAL_AFTER) view?.reveal(index);
-    scheduleEarPlay(450, "current");
+    scheduleEarPlay(EAR_WRONG_DELAY_MS, "current");
   } else if (cfg.memory) view?.reveal(index);
 }
 

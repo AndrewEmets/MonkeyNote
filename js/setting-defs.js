@@ -17,6 +17,12 @@ export const DEFS = {
   // input
   chordWindow: { title: "chord window", icon: "timer", text: "How close together (ms) chord notes must land when they aren't held down together.", labels: { 50: "50ms", 100: "100ms", 150: "150ms", 250: "250ms" } },
   ignoreOctave: { title: "ignore octave", icon: "octave", text: "Accept the right note in any octave. Useful for the computer keyboard, which spans only about two and a half octaves.", labels: { keyboard: "keyboard only", all: "all inputs" } },
+  fitRange: {
+    title: "fit notes to keyboard",
+    icon: "piano",
+    text: "Only write notes your MIDI keyboard has, once its range is known (set above, or learned as you play).",
+    labels: onOff,
+  },
   onScreenKeyboard: { title: "on-screen keyboard", icon: "piano", text: "Show a clickable piano under the staff. Works with touch too.", labels: onOff },
   keyLabels: { title: "key labels", icon: "keyboard", text: "Show which computer key plays each note on the on-screen keyboard.", labels: onOff },
 
@@ -38,12 +44,12 @@ export const DEFS = {
   soundOutput: {
     title: "sound output",
     icon: "plug",
-    text: "Play notes (ear mode, replays, notes you press) through your MIDI keyboard's own sound, e.g. into headphones plugged into it. The wrong-note thud stays in the browser.",
+    text: "Play notes (ear mode, replays, notes you press) through your MIDI keyboard's own sound, e.g. into headphones plugged into it. The error sound becomes a drum hit on the keyboard (MIDI channel 10).",
     labels: { browser: "browser", midi: "midi keyboard" },
   },
   instrument: { title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
-  volume: { title: "volume", icon: "volume", text: "Volume of all sounds, including notes played on the MIDI keyboard.", labels: { 0: "0%", 0.25: "25%", 0.5: "50%", 0.75: "75%", 1: "100%" } },
-  errorSound: { title: "error sound", icon: "warning", text: "A short thud when you play a wrong note.", labels: onOff },
+  volume: { title: "volume", icon: "volume", text: "Volume of all sounds, including notes played on the MIDI keyboard.", format: (v) => `${Math.round(v * 100)}%` },
+  errorSound: { title: "error sound", icon: "warning", text: "A short thud when you play a wrong note. With sound output on the MIDI keyboard, it plays a drum on the keyboard.", labels: onOff },
   earReference: { title: "ear mode reference", icon: "ear", text: "Show the first note in ear mode, so you have a known pitch to hear the rest against.", labels: onOff },
 
   // notation
@@ -67,7 +73,7 @@ export const DEFS = {
   },
   earBatch: { title: "ear batch", icon: "ear", text: "How many notes ear mode plays in a row before you play them back." },
   memoryBatch: { title: "memory batch", icon: "eyeOff", text: "How many notes to memorize at a time in memory mode." },
-  maxChordNotes: { title: "max chord notes", icon: "chords", text: "Largest random chord when chords are turned on in the test bar. (Triads have up to 3 notes, sevenths 4.)" },
+  maxChordNotes: { title: "max chord notes", icon: "chords", text: "Most notes in a chord. Triads have up to 3 notes and sevenths 4; a smaller limit plays part of the chord." },
   noteNames: { title: "note names", icon: "font", text: "Write each note's name next to it. A helper while you learn to read; turn it off as you improve.", labels: onOff },
 
   // appearance

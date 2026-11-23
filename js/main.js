@@ -10,7 +10,7 @@ import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.10.0";
+export const VERSION = "0.11.0";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;

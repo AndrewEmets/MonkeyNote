@@ -1,7 +1,7 @@
 // Run: node --test tests/
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chordSize, diatonicOf, generateItems, staffRange } from "../js/music.js";
+import { chordSize, diatonicOf, generateItems, midiOf, resolveKey, staffRange } from "../js/music.js";
 
 // Deterministic PRNG so failures reproduce.
 function seeded(seed) {
@@ -60,7 +60,7 @@ test("triads at lower densities use the lowest notes of the shape", () => {
 });
 
 test("sevenths have four notes within an octave and follow the key", () => {
-  for (const it of generateItems(300, { ...base, fifths: 2, accidentals: "chromatic", chords: true, chordStyle: "sevenths", chordPower: 0 }, seeded(3))) {
+  for (const it of generateItems(300, { ...base, fifths: 2, accidentals: "chromatic", chords: true, chordStyle: "sevenths", chordPower: 0, maxChordNotes: 4 }, seeded(3))) {
     const ds = it.notes.map(diatonicOf);
     assert.equal(ds.length, 4);
     assert.ok(ds[3] - ds[0] <= 7, `wider than an octave: ${ds}`);
@@ -78,4 +78,37 @@ test("harmonic minor raises the leading tone", () => {
     const expected = p.step === 6 ? 0 : [2, 5].includes(p.step) ? -1 : 0; // B natural; E and A flat
     assert.equal(p.alter, expected, `step ${p.step}`);
   }
+});
+
+test("triads and sevenths respect max chord notes", () => {
+  for (const style of ["triads", "sevenths", "both"]) {
+    for (const it of generateItems(300, { ...base, chords: true, chordStyle: style, chordPower: 0.33, maxChordNotes: 2 }, seeded(5))) {
+      assert.ok(it.notes.length <= 2, `${style}: ${it.notes.length} notes`);
+    }
+  }
+});
+
+test("notes stay within the keyboard's range", () => {
+  // 61 keys (C2–C7) with 4 ledger lines on a grand staff: low bass notes would fall below C2.
+  const opts = { ...base, clef: "grand", ledgerLines: 4, accidentals: "chromatic", chords: true, maxChordNotes: 4, midiRange: [36, 96] };
+  let lowest = Infinity;
+  for (const it of generateItems(2000, opts, seeded(9))) {
+    for (const p of it.notes) {
+      const m = midiOf(p);
+      assert.ok(m >= 36 && m <= 96, `out of range: ${m}`);
+      lowest = Math.min(lowest, m);
+    }
+  }
+  assert.ok(lowest <= 38, `range not used: lowest ${lowest}`);
+});
+
+test("random keys pick major, minor and harmonic minor", () => {
+  const rng = seeded(13);
+  const seen = new Set();
+  for (let i = 0; i < 300; i++) {
+    const k = resolveKey("random2", rng);
+    seen.add(k.harmonic ? "hmin" : k.minor ? "min" : "maj");
+    assert.ok(Math.abs(k.fifths) <= 2);
+  }
+  assert.deepEqual([...seen].sort(), ["hmin", "maj", "min"]);
 });

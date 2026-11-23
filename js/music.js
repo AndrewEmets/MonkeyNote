@@ -55,7 +55,7 @@ export function isKeySpec(v) {
   return typeof v === "string" && /^(random|random2|random[#b][1-7]|h?min:-?[0-7])$/.test(v) && !/min:-0$/.test(v);
 }
 
-/** Pick the key for a test: { fifths, minor }. Random specs pick major or minor at random. */
+/** Pick the key for a test: { fifths, minor, harmonic }. Random specs pick major, minor or harmonic minor. */
 export function resolveKey(spec, rng = Math.random) {
   if (Number.isInteger(spec)) return { fifths: spec, minor: false, harmonic: false };
   if (spec.startsWith("min:")) return { fifths: Number(spec.slice(4)), minor: true, harmonic: false };
@@ -66,7 +66,8 @@ export function resolveKey(spec, rng = Math.random) {
   else if (spec === "random2") fifths = between(-2, 2);
   else if (spec[6] === "#") fifths = between(0, Number(spec.slice(7)));
   else fifths = -between(0, Number(spec.slice(7))) || 0; // (no -0)
-  return { fifths, minor: rng() < 0.5, harmonic: false };
+  const kind = Math.floor(rng() * 3); // major, natural minor or harmonic minor, equally likely
+  return { fifths, minor: kind > 0, harmonic: kind === 2 };
 }
 
 /** Short label for a key spec, for menus and settings. */
@@ -178,7 +179,8 @@ export const chordSize = (rng, max, power = 1) => Math.min(max, 1 + Math.floor(r
  *   maxLeap (diatonic steps between consecutive items on a staff; Infinity for any),
  *   chords, chordStyle: "random" | "triads" | "sevenths" | "both",
  *   maxChordNotes (largest random chord), chordPower (see chordSize),
- *   harmonic (harmonic minor: raise the leading tone of the minor key with this signature)
+ *   harmonic (harmonic minor: raise the leading tone of the minor key with this signature),
+ *   midiRange ([low, high] MIDI keys notes must stay within, e.g. the keyboard's range; null for any)
  * }
  * Triads and sevenths are built from the key (so they're the key's own chords); a smaller size takes
  * the lowest notes of the shape (e.g. a third or a fifth). They are never chromatically altered;
@@ -188,33 +190,50 @@ export function generateItems(count, opts, rng = Math.random) {
   const staves = opts.clef === "grand" ? ["treble", "bass"] : [opts.clef];
   const leap = opts.maxLeap ?? 7;
   const style = opts.chordStyle ?? "random";
+  const keyAlterOf = (step) => keyAlter(opts.fifths, step) + (opts.harmonic && step === leadingToneStep(opts.fifths) ? 1 : 0);
+  const [low, high] = opts.midiRange ?? [-Infinity, Infinity];
+  const playable = (p) => {
+    const m = midiOf(p);
+    return m >= low && m <= high;
+  };
+  // Staff positions whose in-key note is playable (a staff the range misses entirely is left as is).
+  const ranges = {};
+  for (const staff of staves) {
+    let [lo, hi] = staffRange(staff, opts.ledgerLines);
+    const ok = (d) => playable({ ...pitchFromDiatonic(d), alter: keyAlterOf(((d % 7) + 7) % 7) });
+    while (lo <= hi && !ok(lo)) lo++;
+    while (hi >= lo && !ok(hi)) hi--;
+    ranges[staff] = lo <= hi ? [lo, hi] : staffRange(staff, opts.ledgerLines);
+  }
   const items = [];
   const lastBottom = {};
   for (let i = 0; i < count; i++) {
     const staff = pick(rng, staves);
-    const [lo, hi] = staffRange(staff, opts.ledgerLines);
+    const [lo, hi] = ranges[staff];
     const prev = lastBottom[staff];
     const shape = opts.chords && style !== "random" ? pick(rng, CHORD_SHAPES[style]) : null;
-    const size = opts.chords ? chordSize(rng, shape ? shape.length : opts.maxChordNotes, opts.chordPower) : 1;
+    const size = opts.chords ? chordSize(rng, shape ? Math.min(shape.length, opts.maxChordNotes ?? shape.length) : opts.maxChordNotes, opts.chordPower) : 1;
     const single = size === 1;
     let ds;
     if (single) {
       ds = [pickBottom(rng, lo, hi, prev, leap)];
     } else if (!shape) {
-      ds = randomChord(rng, pickBottom(rng, lo, hi - 2, prev, leap), hi, size);
+      ds = randomChord(rng, pickBottom(rng, lo, Math.max(lo, hi - 2), prev, leap), hi, size);
     } else {
       const part = shape.slice(0, size);
       const span = part[part.length - 1] - part[0];
-      const bottom = pickBottom(rng, lo, hi - span, prev, leap);
+      const bottom = pickBottom(rng, lo, Math.max(lo, hi - span), prev, leap);
       ds = part.map((o) => bottom - part[0] + o);
     }
 
     const alterable = single || style === "random";
     const notes = ds.map((d) => {
       const p = pitchFromDiatonic(d);
-      let alter = keyAlter(opts.fifths, p.step) + (opts.harmonic && p.step === leadingToneStep(opts.fifths) ? 1 : 0);
-      if (alterable && opts.accidentals === "chromatic" && rng() < 0.2) alter = alter !== 0 ? 0 : rng() < 0.5 ? 1 : -1;
-      p.alter = alter;
+      p.alter = keyAlterOf(p.step);
+      if (alterable && opts.accidentals === "chromatic" && rng() < 0.2) {
+        const altered = { ...p, alter: p.alter !== 0 ? 0 : rng() < 0.5 ? 1 : -1 };
+        if (playable(altered)) return altered; // (an accidental mustn't push the note off the keyboard)
+      }
       return p;
     });
     items.push({ staff, notes });

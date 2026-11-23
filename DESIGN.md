@@ -13,7 +13,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |
 | Input | MIDI, computer keyboard (piano layout only), on-screen keyboard (optional). |
-| Sound | Built-in Web Audio synth, or the MIDI keyboard's own sound via MIDI output (setting). Synth: an additive "piano" (decaying, slightly stretched harmonics) and a soft sine voice. Notes you press are played for keyboard/screen input by default (MIDI keyboards often have speakers). Optional wrong-note thud. Samples may come later. |
+| Sound | Built-in Web Audio synth, or the MIDI keyboard's own sound via MIDI output (setting). Synth: an additive "piano" (decaying, slightly stretched harmonics) and a soft sine voice. Notes you press are played for keyboard/screen input by default (MIDI keyboards often have speakers). Optional wrong-note thud (a GM drum on channel 10 when sound goes to the MIDI keyboard). Volume in 5% steps. Samples may come later. |
 
 ## Layout (mirrors MonkeyType)
 
@@ -21,7 +21,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;
   ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
   collapse by width when they appear or go, so the others slide instead of jumping.
-- **Above the staff**: level, clef, key and single notes / chords are dropdowns; key and chords open side
+- **Above the staff**: level, clef, key, single notes / chords, max leap and ledger lines are dropdowns; key and chords open side
   panels (random / major / minor / harmonic minor; density / style / max notes).
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
   note finishes its animation; the caret moves to the next line while the rows slide up and the finished
@@ -69,7 +69,7 @@ Toggles (combine with notes / time / attack):
 - **Range**: lowest / highest note, per staff.
 - **Key**: any major key, natural minor (same signature and notes as its relative major) or harmonic minor
   (raised 7th as an accidental), or random per test: any key, up to 2♯/♭, up to N sharps, or up to N flats (random
-  picks major or minor too). Chosen from a menu with random / major / minor side panels.
+  picks major, minor or harmonic minor too). Chosen from a menu with random / major / minor side panels.
 - **Accidentals**: none / in key only / chromatic.
 - **Max leap** between consecutive items on a staff: 2nd / 3rd / 4th / 5th / octave (default) / any.
 - **Chords**: style random (2–max notes stacked within an octave), triads, sevenths, or both.
@@ -101,8 +101,8 @@ Toggles (combine with notes / time / attack):
   The keyboard's octave defaults per clef (Z = C4 treble, C2 bass, C3 grand staff).
 - **MIDI keyboard range**: browsers can't query it, so it is learned from the lowest/highest keys played
   (trusted once it spans two octaves), or set in settings (25–88 key presets, or detect by pressing the
-  lowest and highest key). Reset forgets it after switching keyboards. MIDI notes outside the range are
-  accepted in any octave. Stored apart from settings (it describes hardware).
+  lowest and highest key). Reset forgets it after switching keyboards. With "fit notes to keyboard" (default
+  on) only notes inside the range are generated; any that still fall outside are accepted in any octave. Stored apart from settings (it describes hardware).
 
 ## MIDI controls (results screen only)
 

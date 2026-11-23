@@ -158,11 +158,14 @@ export function renderStaff(container, opts) {
 
   // Pace caret: a faint line moving at a target speed (hidden until placed).
   const ghost = el("g", { class: "ghost-caret", style: "display:none" }, parent);
-  el("rect", { x: -0.1, y: -1, width: 0.2, height: 6, rx: 0.1 }, ghost);
+  el("rect", { x: -0.1, y: -1, width: 0.2, height: 6 + (geo.grand ? geo.tops.bass - geo.tops.treble : 0), rx: 0.1 }, ghost);
 
   // Caret, positioned by a CSS transform so it can animate between items.
   const caret = el("g", { class: `caret caret-${opts.caretStyle}${opts.smoothCaret ? " smooth" : ""}` }, parent);
-  drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines);
+  // Grand staff: the caret (and pace caret) spans both staves, from the treble's top line.
+  const span = geo.grand ? geo.tops.bass - geo.tops.treble : 0;
+  const caretTop = (item) => (geo.grand ? geo.tops.treble : geo.tops[item.staff]);
+  drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines, span);
   caret.style.display = "none";
   let caretShown = false;
 
@@ -194,7 +197,7 @@ export function renderStaff(container, opts) {
         caretShown = false;
         return;
       }
-      const transform = `translate(${r(slotLeft(k))}px, ${r(geo.tops[item.staff])}px)`;
+      const transform = `translate(${r(slotLeft(k))}px, ${r(caretTop(item))}px)`;
       if (caretShown) {
         caret.style.transform = transform;
         return;
@@ -215,7 +218,7 @@ export function renderStaff(container, opts) {
       }
       const k = Math.floor(pos);
       ghost.style.display = "";
-      ghost.style.transform = `translate(${r(slotLeft(k) + (pos - k) * slot)}px, ${r(geo.tops[opts.items[k].staff])}px)`;
+      ghost.style.transform = `translate(${r(slotLeft(k) + (pos - k) * slot)}px, ${r(caretTop(opts.items[k]))}px)`;
     },
     /** Wrong note: shake the item and flash it red; it stays current. */
     shakeItem(k) {
@@ -232,14 +235,15 @@ export function renderStaff(container, opts) {
   };
 }
 
-// Caret shapes, drawn relative to (slot left, staff top line).
-function drawCaret(g, style, slot, ledgerLines) {
-  if (style === "line") el("rect", { x: -0.1, y: -1, width: 0.2, height: 6, rx: 0.1 }, g);
-  else if (style === "block") el("rect", { x: 0.2, y: -1.5, width: slot - 0.4, height: 7, rx: 0.4 }, g);
+// Caret shapes, drawn relative to (slot left, staff top line). span: extra height (grand staff: top of
+// treble to top of bass), so the caret covers both staves.
+function drawCaret(g, style, slot, ledgerLines, span = 0) {
+  if (style === "line") el("rect", { x: -0.1, y: -1, width: 0.2, height: 6 + span, rx: 0.1 }, g);
+  else if (style === "block") el("rect", { x: 0.2, y: -1.5, width: slot - 0.4, height: 7 + span, rx: 0.4 }, g);
   else if (style === "outline")
-    el("rect", { x: 0.25, y: -1.45, width: slot - 0.5, height: 6.9, rx: 0.4, "stroke-width": 0.14 }, g);
+    el("rect", { x: 0.25, y: -1.45, width: slot - 0.5, height: 6.9 + span, rx: 0.4, "stroke-width": 0.14 }, g);
   else if (style === "underline")
-    el("rect", { x: ACC_ROOM - 0.2, y: 4 + ledgerLines + 1.1, width: HEAD_W + 0.4, height: 0.25, rx: 0.1 }, g);
+    el("rect", { x: ACC_ROOM - 0.2, y: span + 4 + ledgerLines + 1.1, width: HEAD_W + 0.4, height: 0.25, rx: 0.1 }, g);
 }
 
 function drawItem(g, item, nx, yOf, fifths, noteNames) {
