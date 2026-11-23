@@ -89,8 +89,10 @@ export function renderStaff(container, opts) {
   const slot = slotWidth(opts.chords, opts.noteNames);
   const yOf = (staff, d) => geo.tops[staff] + 4 - (d - CLEFS[staff].bottom) / 2;
 
+  // "no-anim" until the first frame: items hidden right after rendering (ear/memory) start hidden
+  // instead of fading out.
   const svg = el("svg", {
-    class: "staff",
+    class: "staff no-anim",
     viewBox: `0 0 ${r(W)} ${r(geo.height)}`,
     width: opts.width,
     height: Math.round(geo.height * s),
@@ -165,6 +167,7 @@ export function renderStaff(container, opts) {
   let caretShown = false;
 
   container.replaceChildren(svg);
+  requestAnimationFrame(() => requestAnimationFrame(() => svg.classList.remove("no-anim")));
 
   return {
     svg,

@@ -5,6 +5,7 @@ import { DEFS, valueLabel } from "./setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "./theme.js";
 import { icon } from "./icons.js";
 import { debug } from "./debug.js";
+import { hideTooltip } from "./tooltip.js";
 
 let overlay = null;
 let input = null;
@@ -84,6 +85,7 @@ function restartTest() {
 /** Open the palette; `start` ("theme" or a setting key) jumps straight into that submenu. */
 export function openPalette(start) {
   if (overlay) return;
+  hideTooltip();
   overlay = document.createElement("div");
   overlay.className = "palette-backdrop";
   overlay.innerHTML = `

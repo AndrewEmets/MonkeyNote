@@ -7,6 +7,8 @@ let anchor = null;
 function show(el) {
   const text = el.dataset.tip;
   if (!text) return;
+  // While a menu or the command line is open, only its own items show tips (nothing on top of it).
+  if (document.querySelector(".dropdown, .palette-backdrop") && !el.closest(".dropdown")) return hide();
   if (!tip) {
     tip = document.createElement("div");
     tip.className = "tooltip";
@@ -36,6 +38,8 @@ function hide() {
   anchor = null;
   if (tip) tip.hidden = true;
 }
+
+export const hideTooltip = hide;
 
 export function initTooltips() {
   document.addEventListener("mouseover", (e) => {

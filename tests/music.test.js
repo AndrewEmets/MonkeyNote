@@ -70,3 +70,12 @@ test("sevenths have four notes within an octave and follow the key", () => {
     }
   }
 });
+
+test("harmonic minor raises the leading tone", () => {
+  // C harmonic minor (3 flats): B is natural instead of B flat; everything else follows the key.
+  for (const it of generateItems(400, { ...base, fifths: -3, harmonic: true }, seeded(21))) {
+    const p = it.notes[0];
+    const expected = p.step === 6 ? 0 : [2, 5].includes(p.step) ? -1 : 0; // B natural; E and A flat
+    assert.equal(p.alter, expected, `step ${p.step}`);
+  }
+});

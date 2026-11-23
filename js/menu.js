@@ -3,7 +3,7 @@
 // sub is a list of columns: [{ title, items: [{ label, active, run }] }].
 // Closes on pick, outside click, Esc, scroll or resize.
 import { icon } from "./icons.js";
-import { tipAttr } from "./tooltip.js";
+import { hideTooltip, tipAttr } from "./tooltip.js";
 
 let open = null; // { anchor, close }
 
@@ -18,6 +18,7 @@ export function openMenu(anchor, items) {
   const wasForThis = open?.anchor === anchor;
   closeMenu();
   if (wasForThis) return; // clicking the same word again just closes it
+  hideTooltip();
 
   const el = document.createElement("div");
   el.className = "dropdown";

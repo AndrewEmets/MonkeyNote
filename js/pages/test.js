@@ -260,33 +260,102 @@ function renderConfig() {
   const s = settings.all();
   const button = (key, value, label, iconName, active) =>
     `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+  const custom = (action, isCustom, value, tip) =>
+    `<button class="text-button${isCustom ? " active" : ""}" data-action="${action}"${tipAttr(tip)}>${isCustom ? value : icon("wrench")}</button>`;
   const current = presentationOf(s);
-  const presentation = ([p, ic]) =>
-    `<button class="text-button${current === p ? " active" : ""}" data-action="presentation" data-value="${p}">${icon(ic)}<span>${p}</span></button>`;
-  const [valueKey, values] = MODE_VALUES[s.mode] ?? [];
-  const customLength = valueKey && !values.includes(s[valueKey]);
-  const lengths = valueKey
-    ? `<div class="divider"></div><div class="group">${values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("")}${
-        CUSTOM_LENGTH[valueKey]
-          ? `<button class="text-button${customLength ? " active" : ""}" data-action="length-custom"${tipAttr(`custom ${CUSTOM_LENGTH[valueKey].title}`)}>${customLength ? s[valueKey] : icon("wrench")}</button>`
-          : ""
-      }</div>`
-    : "";
+  const groups = [
+    {
+      id: "presentation",
+      html: PRESENTATIONS.map(([p, ic]) => `<button class="text-button${current === p ? " active" : ""}" data-action="presentation" data-value="${p}">${icon(ic)}<span>${p}</span></button>`).join(""),
+    },
+  ];
   // How many notes at a time: memorized (memory) or heard in a row (ear).
-  const customBatch = !MEMORY_BATCHES.includes(s.memoryBatch);
-  const batch = s.memory
-    ? `<div class="divider"></div><div class="group"><span class="group-icon">${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) =>
-        button("memoryBatch", v, v, null, s.memoryBatch === v),
-      ).join("")}<button class="text-button${customBatch ? " active" : ""}" data-action="memory-custom"${tipAttr("custom batch size")}>${customBatch ? s.memoryBatch : icon("wrench")}</button></div>`
-    : s.ear
-      ? `<div class="divider"></div><div class="group"><span class="group-icon">${icon("ear")}</span>${EAR_BATCHES.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("")}</div>`
-      : "";
-  els.config.innerHTML = `
-    <div class="group">${PRESENTATIONS.map(presentation).join("")}</div>
-    ${batch}
-    <div class="divider"></div>
-    <div class="group">${MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode)).join("")}</div>
-    ${lengths}`;
+  if (s.memory) {
+    groups.push({
+      id: "batch-memory",
+      html: `<span class="group-icon">${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) => button("memoryBatch", v, v, null, s.memoryBatch === v)).join("")}${custom(
+        "memory-custom",
+        !MEMORY_BATCHES.includes(s.memoryBatch),
+        s.memoryBatch,
+        "custom batch size",
+      )}`,
+    });
+  } else if (s.ear) {
+    groups.push({
+      id: "batch-ear",
+      html: `<span class="group-icon">${icon("ear")}</span>${EAR_BATCHES.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("")}${custom(
+        "ear-custom",
+        !EAR_BATCHES.includes(s.earBatch),
+        s.earBatch,
+        "custom number of notes heard in a row",
+      )}`,
+    });
+  }
+  groups.push({ id: "modes", html: MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode)).join("") });
+  const [valueKey, values] = MODE_VALUES[s.mode] ?? [];
+  if (valueKey) {
+    groups.push({
+      id: `lengths-${s.mode}`,
+      html:
+        values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("") +
+        (CUSTOM_LENGTH[valueKey] ? custom("length-custom", !values.includes(s[valueKey]), s[valueKey], `custom ${CUSTOM_LENGTH[valueKey].title}`) : ""),
+    });
+  }
+  syncGroups(els.config, groups);
+}
+
+const GROUP_MS = 260;
+const GROUP_EASING = "cubic-bezier(0.3, 0, 0.2, 1)";
+
+/**
+ * Update the test bar group by group: changed groups update in place, new ones grow in from zero
+ * width and removed ones collapse, so the rest slide to their new places instead of jumping.
+ */
+function syncGroups(container, groups) {
+  const animate = container.querySelector(".group:not([data-leaving])") !== null;
+  const live = new Map();
+  const leaving = new Map();
+  for (const el of container.children) (el.dataset.leaving ? leaving : live).set(el.dataset.group, el);
+  const wanted = new Set(groups.map((g) => g.id));
+
+  // Collapse groups that are no longer wanted (removed when done, or after a timeout as a fallback).
+  for (const [id, el] of live) {
+    if (wanted.has(id)) continue;
+    el.dataset.leaving = "1";
+    const remove = () => el.dataset.leaving && el.remove();
+    el.collapse = el.animate([{ width: `${el.offsetWidth}px`, opacity: 1 }, { width: "0px", opacity: 0 }], { duration: GROUP_MS, easing: GROUP_EASING, fill: "forwards" });
+    el.collapse.finished.then(remove).catch(() => {});
+    setTimeout(remove, GROUP_MS + 100);
+  }
+
+  let prev = null;
+  groups.forEach((g, i) => {
+    const html = (i > 0 ? `<span class="divider"></span>` : "") + g.html;
+    let el = live.get(g.id);
+    let grow = false;
+    if (!el && leaving.has(g.id)) {
+      // Wanted again while collapsing: bring it back instead of adding a second copy.
+      el = leaving.get(g.id);
+      el.collapse?.cancel();
+      delete el.dataset.leaving;
+    }
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "group";
+      el.dataset.group = g.id;
+      grow = animate;
+    }
+    if (el.dataset.html !== html) {
+      el.innerHTML = html;
+      el.dataset.html = html;
+    }
+    // Place after the previous group, leaving collapsing groups where they are.
+    let after = prev ? prev.nextElementSibling : container.firstElementChild;
+    while (after && after !== el && after.dataset.leaving) after = after.nextElementSibling;
+    if (after !== el) container.insertBefore(el, after);
+    if (grow) el.animate([{ width: "0px", opacity: 0 }, { width: `${el.offsetWidth}px`, opacity: 1 }], { duration: GROUP_MS, easing: GROUP_EASING });
+    prev = el;
+  });
 }
 
 async function onConfigClick(e) {
@@ -295,7 +364,10 @@ async function onConfigClick(e) {
   btn.blur();
   if (btn.dataset.key) settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
   else if (btn.dataset.action === "presentation") setPresentation(btn.dataset.value);
-  else if (btn.dataset.action === "memory-custom") {
+  else if (btn.dataset.action === "ear-custom") {
+    const n = await askNumber({ title: "notes heard in a row", value: settings.get("earBatch"), min: 1, max: 8 });
+    if (n !== null) settings.set("earBatch", n);
+  } else if (btn.dataset.action === "memory-custom") {
     const n = await askNumber({ title: "notes to memorize", value: settings.get("memoryBatch"), min: 1, max: 32 });
     if (n !== null) settings.set("memoryBatch", n);
   } else if (btn.dataset.action === "length-custom") {
@@ -602,10 +674,11 @@ function restart() {
     settings.set("theme", names[Math.floor(Math.random() * names.length)]);
   }
   const cfg = settings.all();
-  const { fifths, minor } = resolveKey(cfg.keySignature);
+  const { fifths, minor, harmonic } = resolveKey(cfg.keySignature);
   const genOpts = {
     clef: cfg.clef,
     fifths,
+    harmonic,
     accidentals: cfg.accidentals,
     ledgerLines: cfg.ledgerLines,
     maxLeap: cfg.maxLeap === "any" ? Infinity : cfg.maxLeap,
@@ -624,7 +697,7 @@ function restart() {
   });
   const attack =
     cfg.mode === "attack" ? { lives: ATTACK_LIVES, startNpm: cfg.attackSpeed, npm: cfg.attackSpeed, peak: cfg.attackSpeed, distance: null, last: 0, raf: 0 } : null;
-  test = { cfg, fifths, minor, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map() };
+  test = { cfg, fifths, minor, harmonic, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map() };
   view = null;
 
   els.results.hidden = true;
@@ -640,17 +713,16 @@ function restart() {
   scheduleEarPlay(500);
 }
 
-/** Line above the staff: clef, key and single notes / chords are dropdowns that change the settings, then the task hint. */
+/** Line above the staff: level, clef, key and single notes / chords, each a dropdown that changes the settings. */
 function renderMeta() {
-  const { cfg, fifths, minor } = test;
+  const { cfg, fifths, minor, harmonic } = test;
   const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
-  const key = `${keyName(fifths, minor)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
+  const key = `${keyName(fifths, minor, harmonic)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
   const levelLabel = rank.level ? rank.level.id : "custom";
   const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
-  const task = cfg.ear ? "listen, then play what you hear" : "";
   const chords = `<button class="meta-pick" data-pick="chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
-  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature">${key}</button> · ${chords}${task ? ` · ${task}` : ""}`;
+  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature">${key}</button> · ${chords}`;
 }
 
 function onMetaClick(e) {
@@ -666,18 +738,16 @@ function onMetaClick(e) {
   }
   if (key === "keySignature") return openMenu(btn, keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
   if (key === "chords") {
-    // One menu for both: single notes, or chords at a density.
+    // single notes, or chords ▸ with columns for density, style and size (any pick turns chords on)
     const s = settings.all();
+    const pick = (k, v) => () => {
+      settings.set(k, v);
+      settings.set("chords", true);
+    };
+    const column = (title, k) => ({ title, items: OPTIONS[k].map((v) => ({ label: valueLabel(k, v), active: s.chords && s[k] === v, run: pick(k, v) })) });
     return openMenu(btn, [
       { label: "single notes", active: !s.chords, run: () => settings.set("chords", false) },
-      ...OPTIONS.chordPower.map((v) => ({
-        label: `chords: ${valueLabel("chordPower", v)}`,
-        active: s.chords && s.chordPower === v,
-        run: () => {
-          settings.set("chordPower", v);
-          settings.set("chords", true);
-        },
-      })),
+      { label: "chords", active: s.chords, sub: [column("density", "chordPower"), column("style", "chordStyle"), column("max notes", "maxChordNotes")] },
     ]);
   }
   const label = (v) => valueLabel(key, v);
@@ -769,7 +839,7 @@ function showResults() {
   stopTimers();
   exitFocusMode();
   root.classList.remove("running");
-  const { cfg, fifths, minor, engine } = test;
+  const { cfg, fifths, minor, harmonic, engine } = test;
   const r = computeResults(engine, cfg, { peakNpm: test.attack?.peak });
   let isPb = false;
   if (!test.cheated) {
@@ -784,6 +854,7 @@ function showResults() {
         notes: r.score, // notes (or chords) played
         fifths,
         minor,
+        harmonic,
         ...(test.attack && { score: r.score, peakNpm: r.peakNpm }),
         pitches: r.pitches.map((p) => [p.midi, p.attempts, p.misses]),
       },
@@ -795,7 +866,7 @@ function showResults() {
   els.piano.hidden = true;
   els.results.hidden = false;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
-  renderResults(els.results, r, { cfg, fifths, minor, isPb, rank, note: test.cheated ? "debug run: not saved to stats" : "" });
+  renderResults(els.results, r, { cfg, fifths, minor, harmonic, isPb, rank, note: test.cheated ? "debug run: not saved to stats" : "" });
   resultsShownAt = performance.now();
   renderMidiMenu();
 }

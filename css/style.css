@@ -174,9 +174,11 @@ a {
 
 .config-bar .group {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
+  overflow: hidden; /* groups grow in / collapse by width */
+  white-space: nowrap;
 }
 
 .config-bar .group-icon {
@@ -278,6 +280,10 @@ svg.staff .item {
 
 .flip-colors svg.staff .item.correct {
   fill: var(--sub-color);
+}
+
+svg.staff.no-anim .item {
+  transition: none;
 }
 
 /* memory mode */

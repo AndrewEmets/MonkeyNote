@@ -33,7 +33,7 @@ const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const round = (v) => Math.round(v);
 const modeLabel = (r) => `${r.mode}${r.value != null ? ` ${r.value}` : ""}`;
 const info = (r) =>
-  [r.clef === "grand" ? "grand staff" : r.clef, r.fifths != null ? keyName(r.fifths, r.minor) : null, r.chords && "chords", r.accidentals === "chromatic" && "chromatic", r.memory && "memory", r.ear && "ear"]
+  [r.clef === "grand" ? "grand staff" : r.clef, r.fifths != null ? keyName(r.fifths, r.minor, r.harmonic) : null, r.chords && "chords", r.accidentals === "chromatic" && "chromatic", r.memory && "memory", r.ear && "ear"]
     .filter(Boolean)
     .join(" · ");
 
@@ -339,7 +339,7 @@ function exportCsv() {
   const csv = [header.join(",")]
     .concat(
       rows.map((r) =>
-        [new Date(r.date).toISOString(), r.mode, r.value ?? "", r.npm, r.acc, r.consistency ?? "", r.seconds ?? "", r.notes ?? "", r.score ?? "", r.clef ?? "", r.fifths != null ? keyName(r.fifths, r.minor) : "", r.accidentals ?? "", !!r.chords, !!r.memory, !!r.ear]
+        [new Date(r.date).toISOString(), r.mode, r.value ?? "", r.npm, r.acc, r.consistency ?? "", r.seconds ?? "", r.notes ?? "", r.score ?? "", r.clef ?? "", r.fifths != null ? keyName(r.fifths, r.minor, r.harmonic) : "", r.accidentals ?? "", !!r.chords, !!r.memory, !!r.ear]
           .map((v) => (/[",\n]/.test(String(v)) ? `"${String(v).replaceAll('"', '""')}"` : v))
           .join(","),
       ),

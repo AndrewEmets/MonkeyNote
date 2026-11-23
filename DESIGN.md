@@ -19,8 +19,10 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 
 - **Top bar**: logo, nav icons (test, stats, settings).
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;
-  ear: 1/2/3) | mode (notes, time, attack, zen) | length (presets + custom).
-- **Above the staff**: clef, key and single notes / chords (with density) are clickable dropdowns.
+  ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
+  collapse by width when they appear or go, so the others slide instead of jumping.
+- **Above the staff**: level, clef, key and single notes / chords are dropdowns; key and chords open side
+  panels (random / major / minor / harmonic minor; density / style / max notes).
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
   note finishes its animation; the caret moves to the next line while the rows slide up and the finished
   line fades out (or, with one visible line, the last note shows played, then it fades out and the next
@@ -65,8 +67,8 @@ Toggles (combine with notes / time / attack):
 - **Clef**: treble, bass, grand staff. Alto/tenor later.
 - **Grand staff**: alternating (one staff at a time) or both hands (notes on both staves at once).
 - **Range**: lowest / highest note, per staff.
-- **Key**: any major or minor key (minor = natural minor: same signature and notes as its relative major,
-  only the name differs), or random per test: any key, up to 2♯/♭, up to N sharps, or up to N flats (random
+- **Key**: any major key, natural minor (same signature and notes as its relative major) or harmonic minor
+  (raised 7th as an accidental), or random per test: any key, up to 2♯/♭, up to N sharps, or up to N flats (random
   picks major or minor too). Chosen from a menu with random / major / minor side panels.
 - **Accidentals**: none / in key only / chromatic.
 - **Max leap** between consecutive items on a staff: 2nd / 3rd / 4th / 5th / octave (default) / any.

@@ -32,7 +32,7 @@ export const OPTIONS = {
   // notation
   clef: ["treble", "bass", "grand"],
   // more key specs are valid (see music.js isKeySpec): minor keys, random up to N sharps/flats
-  keySignature: ["random", "random2", 0, 1, 2, 3, 4, 5, 6, 7, -1, -2, -3, -4, -5, -6, -7, ...[0, 1, 2, 3, 4, 5, 6, 7, -1, -2, -3, -4, -5, -6, -7].map((f) => `min:${f}`)],
+  keySignature: ["random", "random2", 0, 1, 2, 3, 4, 5, 6, 7, -1, -2, -3, -4, -5, -6, -7, ...[0, 1, 2, 3, 4, 5, 6, 7, -1, -2, -3, -4, -5, -6, -7].flatMap((f) => [`min:${f}`, `hmin:${f}`])],
   accidentals: ["diatonic", "chromatic"],
   ledgerLines: [0, 1, 2, 3, 4],
   maxLeap: [1, 2, 3, 4, 7, "any"],
@@ -111,6 +111,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const VALIDATORS = {
   theme: (v) => v === "custom" || Object.hasOwn(THEMES, v),
   memoryBatch: (v) => Number.isInteger(v) && v >= 1 && v <= 32,
+  earBatch: (v) => Number.isInteger(v) && v >= 1 && v <= 8, // 1/2/3 in the bar, or custom
   keySignature: isKeySpec,
   notesCount: (v) => Number.isInteger(v) && v >= 1 && v <= 999, // presets in OPTIONS, or custom
   paceCaretNpm: (v) => Number.isInteger(v) && v >= 1 && v <= 400,
