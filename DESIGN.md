@@ -65,7 +65,9 @@ Toggles (combine with notes / time / attack):
 - **Clef**: treble, bass, grand staff. Alto/tenor later.
 - **Grand staff**: alternating (one staff at a time) or both hands (notes on both staves at once).
 - **Range**: lowest / highest note, per staff.
-- **Key signature**: fixed or random per test.
+- **Key**: any major or minor key (minor = natural minor: same signature and notes as its relative major,
+  only the name differs), or random per test: any key, up to 2♯/♭, up to N sharps, or up to N flats (random
+  picks major or minor too). Chosen from a menu with random / major / minor side panels.
 - **Accidentals**: none / in key only / chromatic.
 - **Max leap** between consecutive items on a staff: 2nd / 3rd / 4th / 5th / octave (default) / any.
 - **Chords**: style random (2–max notes stacked within an octave), triads, sevenths, or both.

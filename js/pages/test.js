@@ -1,6 +1,7 @@
 // Test page: config bar, staff lines with caret, input handling, live counter, results.
 import { OPTIONS, settings } from "../settings.js";
-import { generateItems, keyName, KEYS, midiOf, pitchFromDiatonic, staffRange } from "../music.js";
+import { generateItems, keyName, midiOf, pitchFromDiatonic, resolveKey, staffRange } from "../music.js";
+import { keyMenuItems } from "../key-menu.js";
 import { lineCapacity, renderStaff } from "../staff.js";
 import { icon } from "../icons.js";
 import { input } from "../input.js";
@@ -601,12 +602,7 @@ function restart() {
     settings.set("theme", names[Math.floor(Math.random() * names.length)]);
   }
   const cfg = settings.all();
-  const fifths =
-    cfg.keySignature === "random"
-      ? KEYS[Math.floor(Math.random() * KEYS.length)].fifths
-      : cfg.keySignature === "random2"
-        ? Math.floor(Math.random() * 5) - 2
-        : cfg.keySignature;
+  const { fifths, minor } = resolveKey(cfg.keySignature);
   const genOpts = {
     clef: cfg.clef,
     fifths,
@@ -628,7 +624,7 @@ function restart() {
   });
   const attack =
     cfg.mode === "attack" ? { lives: ATTACK_LIVES, startNpm: cfg.attackSpeed, npm: cfg.attackSpeed, peak: cfg.attackSpeed, distance: null, last: 0, raf: 0 } : null;
-  test = { cfg, fifths, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map() };
+  test = { cfg, fifths, minor, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map() };
   view = null;
 
   els.results.hidden = true;
@@ -646,9 +642,9 @@ function restart() {
 
 /** Line above the staff: clef, key and single notes / chords are dropdowns that change the settings, then the task hint. */
 function renderMeta() {
-  const { cfg, fifths, attack } = test;
+  const { cfg, fifths, minor } = test;
   const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
-  const key = `${keyName(fifths)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
+  const key = `${keyName(fifths, minor)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
   const levelLabel = rank.level ? rank.level.id : "custom";
   const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
@@ -668,6 +664,7 @@ function onMetaClick(e) {
       { label: "custom", tip: "your own settings (practice)", active: !current, run: restoreCustom },
     ]);
   }
+  if (key === "keySignature") return openMenu(btn, keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
   if (key === "chords") {
     // One menu for both: single notes, or chords at a density.
     const s = settings.all();
@@ -683,7 +680,7 @@ function onMetaClick(e) {
       })),
     ]);
   }
-  const label = (v) => (key === "keySignature" ? (v === "random" ? "random key" : v === "random2" ? "random key, up to 2♯/♭" : keyName(v)) : valueLabel(key, v));
+  const label = (v) => valueLabel(key, v);
   openMenu(
     btn,
     OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })),
@@ -772,7 +769,7 @@ function showResults() {
   stopTimers();
   exitFocusMode();
   root.classList.remove("running");
-  const { cfg, fifths, engine } = test;
+  const { cfg, fifths, minor, engine } = test;
   const r = computeResults(engine, cfg, { peakNpm: test.attack?.peak });
   let isPb = false;
   if (!test.cheated) {
@@ -786,6 +783,7 @@ function showResults() {
         seconds: r.seconds,
         notes: r.score, // notes (or chords) played
         fifths,
+        minor,
         ...(test.attack && { score: r.score, peakNpm: r.peakNpm }),
         pitches: r.pitches.map((p) => [p.midi, p.attempts, p.misses]),
       },
@@ -797,7 +795,7 @@ function showResults() {
   els.piano.hidden = true;
   els.results.hidden = false;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
-  renderResults(els.results, r, { cfg, fifths, isPb, rank, note: test.cheated ? "debug run: not saved to stats" : "" });
+  renderResults(els.results, r, { cfg, fifths, minor, isPb, rank, note: test.cheated ? "debug run: not saved to stats" : "" });
   resultsShownAt = performance.now();
   renderMidiMenu();
 }

@@ -24,6 +24,30 @@
   box-sizing: border-box;
 }
 
+/* themed, thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sub-color) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sub-color);
+  border-radius: 0.25rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-color);
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -920,6 +944,45 @@ body.focus-mode .restart-button {
   background: var(--sub-alt-color);
   box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.3);
   animation: palette-in 0.1s;
+}
+
+.dropdown-panel {
+  flex-direction: row;
+  gap: 0.25rem;
+  max-height: none;
+}
+
+.dropdown-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 7.5rem;
+}
+
+.dropdown-col-title {
+  padding: 0.3rem 0.6rem 0.2rem;
+  color: var(--sub-color);
+  font-size: 0.7rem;
+}
+
+.dropdown-item .sub-arrow {
+  margin-left: auto;
+  display: inline-flex;
+  color: var(--sub-color);
+}
+
+.dropdown-item.open {
+  background: var(--bg-color);
+}
+
+.dropdown-item .sub-hint {
+  margin-left: 0.4rem;
+  color: var(--sub-color);
+  font-size: 0.75rem;
+}
+
+.dropdown-item:hover .sub-hint,
+.dropdown-item:hover .sub-arrow {
+  color: inherit;
 }
 
 .dropdown-item {

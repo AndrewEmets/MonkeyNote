@@ -59,18 +59,18 @@ export function computeResults(engine, cfg, { peakNpm = 0 } = {}) {
   };
 }
 
-const testType = (cfg, fifths) => {
+const testType = (cfg, fifths, minor) => {
   const value = { notes: cfg.notesCount, time: cfg.timeLimit, attack: cfg.attackSpeed }[cfg.mode];
   const mode = value ? `${cfg.mode} ${value}` : cfg.mode;
   const extras = [cfg.chords && "chords", cfg.accidentals === "chromatic" && "chromatic", cfg.memory && `memory ${cfg.memoryBatch}`, cfg.ear && (cfg.earBatch > 1 ? `ear ${cfg.earBatch}` : "ear")].filter(Boolean);
-  return [mode, `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths)}`, extras.join(" · ")].filter(Boolean).join("<br>");
+  return [mode, `${cfg.clef === "grand" ? "grand staff" : cfg.clef} · ${keyName(fifths, minor)}`, extras.join(" · ")].filter(Boolean).join("<br>");
 };
 
 const stat = (label, value, title = "") =>
   `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`;
 
 /** Render the results screen into `container`. */
-export function renderResults(container, r, { cfg, fifths, isPb, rank = null, note = "" }) {
+export function renderResults(container, r, { cfg, fifths, minor = false, isPb, rank = null, note = "" }) {
   const misses = r.pitches.filter((p) => p.misses).sort((a, b) => b.misses / b.attempts - a.misses / a.attempts || b.misses - a.misses);
   const crown = isPb ? ` <span class="pb">${icon("crown")}</span>` : "";
   const attack = cfg.mode === "attack";
@@ -97,7 +97,7 @@ export function renderResults(container, r, { cfg, fifths, isPb, rank = null, no
       </div>
     </div>
     <div class="more-stats">
-      ${stat("test type", `${rank?.ranked ? `ranked · ${rank.level.id}` : "practice"}<br>${testType(cfg, fifths)}`, rank && !rank.ranked ? rank.reason : "")}
+      ${stat("test type", `${rank?.ranked ? `ranked · ${rank.level.id}` : "practice"}<br>${testType(cfg, fifths, minor)}`, rank && !rank.ranked ? rank.reason : "")}
       ${modeStats}
       ${stat("notes", `${r.cleanItems}/${r.correctedItems}`, "first try / needed correction")}
       ${stat("consistency", `${r.consistency}%`, "how even your pace was")}

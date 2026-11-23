@@ -48,6 +48,7 @@ const ICONS = {
   warning: () => stroked(`<path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.01"/>`),
   search: () => stroked(`<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>`),
   chevron: () => stroked(`<path d="m6 9 6 6 6-6"/>`),
+  chevronRight: () => stroked(`<path d="m9 6 6 6-6 6"/>`),
   code: () => stroked(`<path d="m8 6-6 6 6 6M16 6l6 6-6 6"/>`),
   check: () => stroked(`<path d="m5 12 5 5 9-10"/>`),
   volume: () => stroked(`<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>`),

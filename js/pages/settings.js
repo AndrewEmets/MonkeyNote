@@ -4,6 +4,9 @@ import { DEFS, valueLabel } from "../setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
 import { tipAttr } from "../tooltip.js";
+import { keySpecLabel } from "../music.js";
+import { keyMenuItems } from "../key-menu.js";
+import { closeMenu, openMenu } from "../menu.js";
 import { midiOut, midiStatus, onMidiChange } from "../midi.js";
 import { midiName, midiRange, PRESETS } from "../midi-range.js";
 import { clearHistory } from "../history.js";
@@ -19,7 +22,7 @@ const SECTIONS = [
     id: "notation",
     title: "notation",
     icon: "note",
-    rows: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordPower", "noteNames"],
+    rows: ["clef", keySignatureRow, "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordPower", "noteNames"],
   },
   { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "barLines", "caretStyle", paceCaretRow, "smoothCaret", "flipColors", "fontFamily"] },
   { id: "theme", title: "theme", icon: "palette", rows: ["randomTheme", customThemeRow, themeGrid] },
@@ -63,6 +66,7 @@ export function mount(container) {
 }
 
 export function unmount() {
+  closeMenu();
   unsubscribe();
   midiRange.cancelDetect();
   applyTheme(settings.get("theme"), { persist: false });
@@ -148,6 +152,16 @@ function midiStatusText() {
   if (status === "pending") return "waiting for MIDI permission…";
   if (status === "denied") return "MIDI access was blocked; allow it in the browser's site settings";
   return devices.length ? `connected: ${devices.join(", ")}` : "no MIDI device connected";
+}
+
+/** Key: one button showing the current key; it opens the random / major / minor menu. */
+function keySignatureRow() {
+  return `
+    <div class="setting">
+      <div class="setting-title">${icon("key")}<span>${DEFS.keySignature.title}</span></div>
+      <div class="setting-text">${DEFS.keySignature.text}</div>
+      <div class="setting-buttons"><button class="button active key-pick" data-action="key-menu">${keySpecLabel(settings.get("keySignature"))}</button></div>
+    </div>`;
 }
 
 /** Volume as a slider snapping to 0, 25, 50, 75, 100%. */
@@ -278,6 +292,7 @@ function onClick(e) {
   else if (target.dataset.jump) scrollToSection(target.dataset.jump);
   else if (target.dataset.collapse) target.closest(".settings-section").classList.toggle("collapsed");
   else if (target.dataset.action === "custom-theme") useCustomTheme();
+  else if (target.dataset.action === "key-menu") openMenu(target, keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
   else if (target.dataset.action === "reset" && confirm("Reset all settings to defaults? This cannot be undone.")) settings.reset();
   else if (target.dataset.action === "clear-history" && confirm("Delete all saved results and personal bests? This cannot be undone.")) {
     clearHistory();
@@ -352,6 +367,7 @@ function refresh(key, value) {
   for (const btn of root.querySelectorAll(`[data-key="${key}"]`)) btn.classList.toggle("active", JSON.parse(btn.dataset.value) === value);
   if (key === "soundOutput") root.querySelector(".sound-output-status").textContent = soundOutputStatus();
   if (key === "volume") syncVolumeSlider();
+  if (key === "keySignature") root.querySelector(".key-pick").textContent = keySpecLabel(value);
   // Preview the new tone or volume with a C major chord.
   if (key === "instrument" || key === "volume" || key === "soundOutput") audio.play([60, 64, 67], 1);
   if (key === "errorSound" && value) audio.error();

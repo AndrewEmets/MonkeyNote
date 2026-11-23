@@ -1,6 +1,6 @@
 // Labels and descriptions for every setting, shared by the settings page and the command palette.
 // Allowed values live in settings.js (OPTIONS).
-import { KEYS } from "./music.js";
+import { keySpecLabel } from "./music.js";
 
 const onOff = { false: "off", true: "on" };
 
@@ -51,9 +51,8 @@ export const DEFS = {
   keySignature: {
     title: "key signature",
     icon: "key",
-    text: "Key of the generated notes. Random picks a new key every test (\"≤2♯/♭\" only from keys with up to two sharps or flats).",
-    labels: Object.fromEntries([["random", "random"], ["random2", "random ≤2♯/♭"], ...KEYS.map((k) => [k.fifths, k.name])]),
-    wide: true,
+    text: "Key of the generated notes: a major or minor key, or a random one each test (any, or up to a number of sharps or flats).",
+    format: keySpecLabel,
   },
   accidentals: { title: "accidentals", icon: "sharp", text: "Diatonic keeps every note in the key. Chromatic adds sharps, flats and naturals outside it." },
   ledgerLines: { title: "ledger lines", icon: "lines", text: "How many ledger lines notes may use above and below the staff." },
@@ -91,4 +90,4 @@ export const DEFS = {
 };
 
 /** Display label for one value of a setting. */
-export const valueLabel = (key, value) => DEFS[key]?.labels?.[value] ?? String(value);
+export const valueLabel = (key, value) => DEFS[key]?.format?.(value) ?? DEFS[key]?.labels?.[value] ?? String(value);

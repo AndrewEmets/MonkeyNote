@@ -32,7 +32,45 @@ export const KEYS = [
   { fifths: -7, name: "C♭" },
 ];
 
-export const keyName = (fifths) => `${KEYS.find((k) => k.fifths === fifths).name} major`;
+const MINOR_NAMES = { 0: "A", 1: "E", 2: "B", 3: "F♯", 4: "C♯", 5: "G♯", 6: "D♯", 7: "A♯", "-1": "D", "-2": "G", "-3": "C", "-4": "F", "-5": "B♭", "-6": "E♭", "-7": "A♭" };
+
+/** "D major", or the relative minor for the same signature ("B minor"). */
+export const keyName = (fifths, minor = false) => (minor ? `${MINOR_NAMES[fifths]} minor` : `${KEYS.find((k) => k.fifths === fifths).name} major`);
+
+/*
+ * Key setting ("key spec"):
+ *   0..7 / -1..-7   a major key by sharps (+) or flats (-)
+ *   "min:<n>"       the minor key with that signature (natural minor: same notes as its relative major)
+ *   "random"        any key, major or minor
+ *   "random2"       any key with up to 2 sharps or flats
+ *   "random#<n>"    up to n sharps (incl. none);  "randomb<n>"  up to n flats (incl. none)
+ */
+export function isKeySpec(v) {
+  if (Number.isInteger(v)) return v >= -7 && v <= 7;
+  return typeof v === "string" && /^(random|random2|random[#b][1-7]|min:-?[0-7])$/.test(v) && !/^min:-0$/.test(v);
+}
+
+/** Pick the key for a test: { fifths, minor }. Random specs pick major or minor at random. */
+export function resolveKey(spec, rng = Math.random) {
+  if (Number.isInteger(spec)) return { fifths: spec, minor: false };
+  if (spec.startsWith("min:")) return { fifths: Number(spec.slice(4)), minor: true };
+  const between = (lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
+  let fifths;
+  if (spec === "random") fifths = between(-7, 7);
+  else if (spec === "random2") fifths = between(-2, 2);
+  else if (spec[6] === "#") fifths = between(0, Number(spec.slice(7)));
+  else fifths = -between(0, Number(spec.slice(7))) || 0; // (no -0)
+  return { fifths, minor: rng() < 0.5 };
+}
+
+/** Short label for a key spec, for menus and settings. */
+export function keySpecLabel(spec) {
+  if (Number.isInteger(spec)) return keyName(spec);
+  if (spec.startsWith("min:")) return keyName(Number(spec.slice(4)), true);
+  if (spec === "random") return "random key";
+  if (spec === "random2") return "random, up to 2♯/♭";
+  return `random, up to ${spec.slice(7)}${spec[6] === "#" ? "♯" : "♭"}`;
+}
 
 export const pitchFromDiatonic = (d, alter = 0) => ({ step: ((d % 7) + 7) % 7, octave: Math.floor(d / 7), alter });
 export const diatonicOf = (p) => p.octave * 7 + p.step;
