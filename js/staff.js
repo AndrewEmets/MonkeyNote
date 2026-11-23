@@ -165,7 +165,20 @@ export function renderStaff(container, opts) {
   // Grand staff: the caret (and pace caret) spans both staves, from the treble's top line.
   const span = geo.grand ? geo.tops.bass - geo.tops.treble : 0;
   const caretTop = (item) => (geo.grand ? geo.tops.treble : geo.tops[item.staff]);
-  drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines, span);
+  const shape = drawCaret(caret, opts.caretStyle, slot, opts.ledgerLines, span);
+  // Stretch the caret over notes beyond the staff (ledger lines), so it always covers the item.
+  const fitCaret = (item) => {
+    if (!shape) return;
+    const ys = item.notes.map((p) => yOf(item.staff, diatonicOf(p)) - caretTop(item));
+    if (shape.underline) {
+      shape.rect.style.y = `${r(Math.max(shape.y, Math.max(...ys) + 1.1))}px`;
+      return;
+    }
+    const top = Math.min(shape.y, Math.min(...ys) - 0.5 - shape.pad);
+    const bottom = Math.max(shape.y + shape.height, Math.max(...ys) + 0.5 + shape.pad);
+    shape.rect.style.y = `${r(top)}px`;
+    shape.rect.style.height = `${r(bottom - top)}px`;
+  };
   caret.style.display = "none";
   let caretShown = false;
 
@@ -198,16 +211,18 @@ export function renderStaff(container, opts) {
         return;
       }
       const transform = `translate(${r(slotLeft(k))}px, ${r(caretTop(item))}px)`;
+      fitCaret(item);
       if (caretShown) {
         caret.style.transform = transform;
         return;
       }
       // Appearing (new line, new render): jump straight there instead of animating in from the corner.
-      caret.style.transition = "none";
+      const nodes = [caret, shape?.rect].filter(Boolean);
+      nodes.forEach((n) => (n.style.transition = "none"));
       caret.style.transform = transform;
       caret.style.display = "";
       void caret.getBoundingClientRect();
-      caret.style.transition = "";
+      nodes.forEach((n) => (n.style.transition = ""));
       caretShown = true;
     },
     /** Pace caret at a fractional item position (e.g. 3.5 = halfway through item 3); null hides it. */
@@ -229,6 +244,10 @@ export function renderStaff(container, opts) {
       void g.getBoundingClientRect(); // restart the animations
       for (const node of [g, caret]) node.classList.add("shake");
     },
+    /** A short scale up and back, e.g. as the note sounds in ear mode. */
+    pulse(k) {
+      itemNodes[k]?.animate([{ transform: "scale(1)" }, { transform: "scale(1.3)" }, { transform: "scale(1)" }], { duration: 320, easing: "ease-out" });
+    },
     setCaretBlink(on) {
       caret.classList.toggle("blink", on);
     },
@@ -238,12 +257,14 @@ export function renderStaff(container, opts) {
 // Caret shapes, drawn relative to (slot left, staff top line). span: extra height (grand staff: top of
 // treble to top of bass), so the caret covers both staves.
 function drawCaret(g, style, slot, ledgerLines, span = 0) {
-  if (style === "line") el("rect", { x: -0.1, y: -1, width: 0.2, height: 6 + span, rx: 0.1 }, g);
-  else if (style === "block") el("rect", { x: 0.2, y: -1.5, width: slot - 0.4, height: 7 + span, rx: 0.4 }, g);
-  else if (style === "outline")
-    el("rect", { x: 0.25, y: -1.45, width: slot - 0.5, height: 6.9 + span, rx: 0.4, "stroke-width": 0.14 }, g);
-  else if (style === "underline")
-    el("rect", { x: ACC_ROOM - 0.2, y: span + 4 + ledgerLines + 1.1, width: HEAD_W + 0.4, height: 0.25, rx: 0.1 }, g);
+  // Returns { rect, y, height, pad (room kept around noteheads), underline } for fitting it to an item.
+  const shape = (attrs, pad, underline = false) => ({ rect: el("rect", attrs, g), y: attrs.y, height: attrs.height, pad, underline });
+  if (style === "line") return shape({ x: -0.1, y: -1, width: 0.2, height: 6 + span, rx: 0.1 }, 0.3);
+  if (style === "block") return shape({ x: 0.2, y: -1.5, width: slot - 0.4, height: 7 + span, rx: 0.4 }, 0.5);
+  if (style === "outline") return shape({ x: 0.25, y: -1.45, width: slot - 0.5, height: 6.9 + span, rx: 0.4, "stroke-width": 0.14 }, 0.45);
+  if (style === "underline")
+    return shape({ x: ACC_ROOM - 0.2, y: span + 4 + ledgerLines + 1.1, width: HEAD_W + 0.4, height: 0.25, rx: 0.1 }, 0, true);
+  return null;
 }
 
 function drawItem(g, item, nx, yOf, fifths, noteNames) {

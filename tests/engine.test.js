@@ -119,3 +119,23 @@ test("time mode generates more items", () => {
   assert.equal(e.items.length, 101);
   assert.equal(e.state, "running");
 });
+
+test("rewind: the group is played again; first results stand, the failed note counts as corrected", () => {
+  const e = make([{ notes: [C4] }, { notes: [E4] }, { notes: [G4] }]);
+  e.noteOn(60, "midi", 0, notHeld);
+  e.noteOn(64, "midi", 100, notHeld);
+  e.noteOn(65, "midi", 200, notHeld); // wrong on G4
+  e.rewind(0);
+  assert.equal(e.index, 0);
+  assert.deepEqual(e.states, ["pending", "pending", "pending"]);
+  e.noteOn(60, "midi", 300, notHeld);
+  e.noteOn(64, "midi", 400, notHeld);
+  assert.deepEqual(e.states.slice(0, 2), ["correct", "correct"]);
+  assert.equal(e.results.length, 2); // replays add no results
+  e.noteOn(67, "midi", 500, notHeld);
+  assert.equal(e.states[2], "corrected");
+  assert.equal(e.state, "done");
+  assert.equal(e.results.length, 3);
+  assert.equal(e.pitchStats.get(60).attempts, 1);
+  assert.equal(e.presses.filter((p) => p.replay).length, 2);
+});

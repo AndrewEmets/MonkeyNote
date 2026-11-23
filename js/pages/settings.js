@@ -49,8 +49,14 @@ export function mount(container) {
     <div class="settings-search">${icon("search")}<input type="search" placeholder="search settings" aria-label="search settings" spellcheck="false" /></div>
     <div class="settings-nav">${SECTIONS.map((s) => `<button class="button" data-jump="${s.id}">${s.title}</button>`).join("")}</div>
     <div class="settings-no-match" hidden>no settings match</div>
-    ${SECTIONS.map(sectionHtml).join("")}`;
+    ${SECTIONS.map(sectionHtml).join("")}
+    <button class="to-top" data-action="to-top" aria-label="back to top"${tipAttr("back to top")}>${icon("arrowUp")}</button>`;
   container.appendChild(root);
+  // Back-to-top button: shown once the page has scrolled past the first screen.
+  const toTop = root.querySelector(".to-top");
+  const onScroll = () => toTop.classList.toggle("shown", window.scrollY > window.innerHeight * 0.6);
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
   root.addEventListener("click", onClick);
   root.addEventListener("input", onInput);
   const grid = root.querySelector(".theme-grid");
@@ -62,7 +68,7 @@ export function mount(container) {
     root.querySelector(".sound-output-status").textContent = soundOutputStatus();
   });
   const unsubRange = midiRange.subscribe(() => refreshMidiRange());
-  unsubscribe = () => (unsubSettings(), unsubMidi(), unsubRange());
+  unsubscribe = () => (unsubSettings(), unsubMidi(), unsubRange(), window.removeEventListener("scroll", onScroll));
 }
 
 export function unmount() {
@@ -290,9 +296,10 @@ function onClick(e) {
   else if (target.dataset.key) settings.set(target.dataset.key, JSON.parse(target.dataset.value));
   else if (target.dataset.theme) settings.set("theme", target.dataset.theme);
   else if (target.dataset.jump) scrollToSection(target.dataset.jump);
+  else if (target.dataset.action === "to-top") window.scrollTo({ top: 0, behavior: "smooth" });
   else if (target.dataset.collapse) target.closest(".settings-section").classList.toggle("collapsed");
   else if (target.dataset.action === "custom-theme") useCustomTheme();
-  else if (target.dataset.action === "key-menu") openMenu(target, keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
+  else if (target.dataset.action === "key-menu") openMenu(target, () => keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
   else if (target.dataset.action === "reset" && confirm("Reset all settings to defaults? This cannot be undone.")) settings.reset();
   else if (target.dataset.action === "clear-history" && confirm("Delete all saved results and personal bests? This cannot be undone.")) {
     clearHistory();

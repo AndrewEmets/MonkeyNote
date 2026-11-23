@@ -23,8 +23,9 @@ function pickOutput() {
 }
 
 const FULL_VELOCITY = 110;
-const ERROR_DRUM = 41; // GM low floor tom: a dull thud
+const ERROR_DRUM = 36; // GM bass drum (kick)
 let velocity = Math.round(FULL_VELOCITY * 0.5); // follows the volume setting
+let errorVelocity = 127; // the error drum, louder than notes (it's short and low)
 
 /** Play notes on the MIDI keyboard (channel 1). Same shape as the audio engine's playback calls. */
 export const midiOut = {
@@ -33,6 +34,7 @@ export const midiOut = {
   /** Volume 0..1 sets the note velocity (0 = silent: notes aren't sent). */
   setVolume(v) {
     velocity = Math.round(FULL_VELOCITY * v);
+    errorVelocity = Math.round(127 * Math.min(1, 2 * v));
   },
   noteOn(midi) {
     if (velocity > 0) pickOutput()?.send([0x90, midi, velocity]);
@@ -43,8 +45,8 @@ export const midiOut = {
   /** Wrong-note sound: a drum on the General MIDI percussion channel (10). */
   error() {
     const out = pickOutput();
-    if (!out || velocity === 0) return;
-    out.send([0x99, ERROR_DRUM, Math.min(127, Math.round(velocity * 0.9))]);
+    if (!out || errorVelocity === 0) return;
+    out.send([0x99, ERROR_DRUM, errorVelocity]);
     out.send([0x89, ERROR_DRUM, 0], performance.now() + 150);
   },
   /** Notes together for `seconds`; note-offs are scheduled by the browser's MIDI clock. */

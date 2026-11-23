@@ -1,7 +1,8 @@
 // Dropdown menu anchored under an element (e.g. the clef / key words above the staff).
-// items: [{ label, active, run, tip, sub }]. An item with `sub` opens a side panel on hover or click;
-// sub is a list of columns: [{ title, items: [{ label, active, run }] }].
-// Closes on pick, outside click, Esc, scroll or resize.
+// items: [{ label, active, run, tip, sub }], or a function returning them (rebuilt after each pick, so
+// the checkmarks follow). An item with `sub` opens a side panel on hover or click; sub is a list of
+// columns: [{ title, items: [{ label, active, run }] }].
+// A pick keeps the menu open (to change several things); it closes on outside click, Esc, scroll or resize.
 import { icon } from "./icons.js";
 import { hideTooltip, tipAttr } from "./tooltip.js";
 
@@ -14,16 +15,19 @@ const itemHtml = (item, attrs) =>
     item.active ? icon("check") : `<span class="icon"></span>`
   }<span>${item.label}</span>${item.sub ? `<span class="sub-arrow">${icon("chevronRight")}</span>` : ""}</button>`;
 
-export function openMenu(anchor, items) {
+export function openMenu(anchor, source) {
   const wasForThis = open?.anchor === anchor;
   closeMenu();
   if (wasForThis) return; // clicking the same word again just closes it
   hideTooltip();
 
+  const build = typeof source === "function" ? source : () => source;
+  let items = build();
   const el = document.createElement("div");
   el.className = "dropdown";
   el.setAttribute("role", "menu");
-  el.innerHTML = items.map((item, i) => itemHtml(item, `data-i="${i}"`)).join("");
+  const renderItems = () => (el.innerHTML = items.map((item, i) => itemHtml(item, `data-i="${i}"`)).join(""));
+  renderItems();
   document.body.appendChild(el);
 
   const box = anchor.getBoundingClientRect();
@@ -48,14 +52,7 @@ export function openMenu(anchor, items) {
     button.classList.add("open");
     panel = document.createElement("div");
     panel.className = "dropdown dropdown-panel";
-    panel.innerHTML = items[i].sub
-      .map(
-        (col, c) =>
-          `<div class="dropdown-col">${col.title ? `<div class="dropdown-col-title">${col.title}</div>` : ""}${col.items
-            .map((item, j) => itemHtml(item, `data-c="${c}" data-j="${j}"`))
-            .join("")}</div>`,
-      )
-      .join("");
+    renderPanel();
     document.body.appendChild(panel);
     const b = button.getBoundingClientRect();
     const menu = el.getBoundingClientRect();
@@ -68,10 +65,29 @@ export function openMenu(anchor, items) {
     panel.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-c]");
       if (!btn) return;
-      const item = items[i].sub[Number(btn.dataset.c)].items[Number(btn.dataset.j)];
-      closeMenu();
-      item.run();
+      pick(items[panelFor].sub[Number(btn.dataset.c)].items[Number(btn.dataset.j)]);
     });
+  };
+  const renderPanel = () => {
+    panel.innerHTML = items[panelFor].sub
+      .map(
+        (col, c) =>
+          `<div class="dropdown-col">${col.title ? `<div class="dropdown-col-title">${col.title}</div>` : ""}${col.items
+            .map((item, j) => itemHtml(item, `data-c="${c}" data-j="${j}"`))
+            .join("")}</div>`,
+      )
+      .join("");
+  };
+  // Run a pick, then redraw both lists in place so the checkmarks show the new state.
+  const pick = (item) => {
+    item.run();
+    if (open?.el !== el) return; // the pick closed the menu (or opened another)
+    items = build();
+    renderItems();
+    if (panel && items[panelFor]?.sub) {
+      el.querySelector(`[data-i="${panelFor}"]`)?.classList.add("open");
+      renderPanel();
+    } else closePanel();
   };
 
   el.addEventListener("mouseover", (e) => {
@@ -86,8 +102,7 @@ export function openMenu(anchor, items) {
     if (!btn) return;
     const i = Number(btn.dataset.i);
     if (items[i].sub) return openPanel(i, btn);
-    closeMenu();
-    items[i].run();
+    pick(items[i]);
   });
 
   const onKey = (e) => {
@@ -108,6 +123,7 @@ export function openMenu(anchor, items) {
 
   open = {
     anchor,
+    el,
     close() {
       document.removeEventListener("keydown", onKey, true);
       document.removeEventListener("pointerdown", onDown, true);

@@ -22,7 +22,8 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
   ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
   collapse by width when they appear or go, so the others slide instead of jumping.
 - **Above the staff**: level, clef, key, single notes / chords, max leap and ledger lines are dropdowns; key and chords open side
-  panels (random / major / minor / harmonic minor; density / style / max notes).
+  panels (random / major / minor / harmonic minor; density / style / max notes). A pick keeps the dropdown
+  open (checkmarks update) so several things can be changed; an outside click or Esc closes it.
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
   note finishes its animation; the caret moves to the next line while the rows slide up and the finished
   line fades out (or, with one visible line, the last note shows played, then it fades out and the next
@@ -33,6 +34,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
   every 4 notes (setting). Played notes take
   the text color; notes that needed correction the error-extra color.
 - **Below test**: restart button; on-screen keyboard when enabled.
+- **Caret**: stretches to cover notes on ledger lines; on the grand staff it spans both staves.
 - **Footer**: shortcut hints, theme name (click to open theme picker).
 - **Shortcuts**: Tab restarts; Esc or Ctrl/Cmd+Shift+P opens the command palette: search every setting
   and action, settings open a submenu of their values, themes preview as you move through them.
@@ -53,13 +55,18 @@ Toggles (combine with notes / time / attack):
 - **chords**: items become chords; played together.
 - **memory**: notes come in batches of 2 / 4 / 8 / custom (1–32), chosen in the test bar. The whole batch
   is shown; once its first note is played the rest fade out; when the batch is done the next one appears.
-  A wrong note reveals the note it was meant for, since every note has to be played to move on.
-  In attack mode the groups scroll in visible; once a group's first note is played the rest of it hides
+  A wrong note sends the caret back to the batch start and shows the whole batch again; it hides once the
+  batch's first note is played, and the whole batch has to be played again. In attack mode the groups scroll in visible; once a group's first note is played the rest of it hides
   (a missed note is revealed). Memory and ear are exclusive (ear already hides notes).
-- **ear**: notes (or chords) are played as audio, 1 / 2 / 3 in a row (ear batch), and stay hidden on the staff until
-  you play them; the next batch plays once the last one is done.
-  The first note is shown as a pitch reference (setting). Replay with space, the replay button,
-  or the MIDI sustain pedal. A wrong note replays the target; after 3 wrong tries the note is shown.
+- **ear**: notes (or chords) are played as audio, 1 / 2 / 3 / custom (1–8) in a row (ear batch), and stay hidden
+  on the staff until you play them; the next batch plays once the last one is done. Each note pulses as it
+  sounds. With 2 or more, the first note of every batch is always shown (relative hearing: hear the rest
+  against it); one at a time, the test's first note is shown as a reference (setting). Batches never
+  straddle a line. Replay (the whole batch) with space, the replay button, or the MIDI sustain pedal.
+  A wrong note sends the caret back to the batch start and replays the batch; notes found so far stay
+  shown, but the whole batch has to be played again. After 3 wrong tries on a note it is shown.
+  Replayed notes keep their first result (no new speed or accuracy credit; wrong notes still count).
+  Attack mode can't go back: a wrong note there replays the current note only.
   The caret flashes red on wrong notes, so feedback shows even for hidden notes.
 
 ## Note generation
@@ -173,7 +180,8 @@ Modeled on MonkeyType's account page, all from local data:
 
 ## Settings page
 
-Same long sectioned page with button groups, a search box (settings and theme names) and a jump list:
+Same long sectioned page with button groups, a search box (settings and theme names), a jump list and a
+back-to-top button once scrolled down:
 
 - **behavior**: (reserved) quick restart, test length defaults.
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.

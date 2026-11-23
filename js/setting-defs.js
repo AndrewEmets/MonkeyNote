@@ -50,7 +50,7 @@ export const DEFS = {
   instrument: { title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
   volume: { title: "volume", icon: "volume", text: "Volume of all sounds, including notes played on the MIDI keyboard.", format: (v) => `${Math.round(v * 100)}%` },
   errorSound: { title: "error sound", icon: "warning", text: "A short thud when you play a wrong note. With sound output on the MIDI keyboard, it plays a drum on the keyboard.", labels: onOff },
-  earReference: { title: "ear mode reference", icon: "ear", text: "Show the first note in ear mode, so you have a known pitch to hear the rest against.", labels: onOff },
+  earReference: { title: "ear mode reference", icon: "ear", text: "Show the first note of the test in ear mode, so you have a known pitch to hear the rest against. With 2 or more notes in a row, the first note of every group is shown anyway.", labels: onOff },
 
   // notation
   clef: { title: "clef", icon: "clef", text: "Staff to read from. Grand staff shows treble and bass together, like piano music.", labels: { grand: "grand staff" } },

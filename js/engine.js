@@ -3,6 +3,7 @@
 //
 // Every item must be played correctly before the caret moves on. A wrong note never advances:
 // it counts against accuracy and the item is marked "corrected" once it is finally played.
+// Memory and ear mode can rewind to the start of a group after a wrong note (see rewind).
 import { midiOf } from "./music.js";
 
 const pitchClass = (m) => ((m % 12) + 12) % 12;
@@ -27,6 +28,10 @@ export class TestEngine {
     this.results = []; // { index, t, clean } (clean: no wrong note on the way)
     this.pitchStats = new Map(); // midi -> { pitch, attempts, misses }
     this.attempt = null;
+    // Rewinds: items before replayUntil were already played once and are being played again.
+    this.replayUntil = 0;
+    this.firstStates = []; // state each item got the first time it was played
+    this.carried = new Map(); // index -> wrong-note targets from attempts cut short by a rewind
   }
 
   get current() {
@@ -54,12 +59,32 @@ export class TestEngine {
     const hit = targets.findIndex((t) => t === midi || (anyOctave(t) && pitchClass(t) === pitchClass(midi)));
 
     out.correct = hit >= 0;
-    this.presses.push({ t: now, midi, correct: out.correct });
+    // replay: played again after a rewind (a right note there doesn't count toward accuracy)
+    this.presses.push({ t: now, midi, correct: out.correct, replay: this.index < this.replayUntil });
     if (out.correct) a.hits.set(hit, { time: now, midi, sticky: source === "screen" });
     else a.misses.add(this.#nearestTarget(targets, midi, a, lenient));
 
     if (out.correct && this.#satisfied(a, targets.length, now, isHeld)) out.resolved = this.#resolve(now);
     return out;
+  }
+
+  /**
+   * Go back to item `to` (e.g. the start of a memory or ear group) after a wrong note: the items from
+   * there have to be played again. Their first results stand (a replay adds no results or stats),
+   * and the item where the mistake happened still counts as corrected.
+   */
+  rewind(to) {
+    if (this.state !== "running") return;
+    to = Math.max(0, Math.min(to, this.index));
+    if (this.attempt?.misses.size && this.index >= this.replayUntil) {
+      const carried = this.carried.get(this.index) ?? new Set();
+      this.attempt.misses.forEach((i) => carried.add(i));
+      this.carried.set(this.index, carried);
+    }
+    this.attempt = null;
+    this.replayUntil = Math.max(this.replayUntil, this.index);
+    for (let k = to; k < this.index; k++) this.states[k] = "pending";
+    this.index = to;
   }
 
   finish(now) {
@@ -106,7 +131,16 @@ export class TestEngine {
   }
 
   #resolve(now) {
+    if (this.index < this.replayUntil) {
+      // Replaying after a rewind: restore the first result and move on.
+      this.states[this.index] = this.firstStates[this.index] ?? "correct";
+      this.index++;
+      this.attempt = null;
+      return true;
+    }
     const a = this.attempt;
+    this.carried.get(this.index)?.forEach((i) => a.misses.add(i));
+    this.carried.delete(this.index);
     const missed = !!a.missed;
     const clean = !missed && a.misses.size === 0;
     this.current.notes.forEach((p, i) => {
@@ -117,6 +151,7 @@ export class TestEngine {
       this.pitchStats.set(m, stat);
     });
     this.states[this.index] = missed ? "missed" : clean ? "correct" : "corrected";
+    this.firstStates[this.index] = this.states[this.index];
     this.results.push({ index: this.index, t: now, clean, missed });
     this.index++;
     this.attempt = null;

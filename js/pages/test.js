@@ -428,6 +428,15 @@ function renderHint() {
 const EAR_SEQUENCE_GAP_MS = 650; // between notes heard in a row (ear batch of 2 or 3)
 let earSequence = []; // timers of a sequence being played
 
+/**
+ * Ear mode: whether unplayed item k is hidden. Groups of 2 or more: all but each group's first note
+ * (a known pitch to hear the rest against). One note at a time: all but the test's first (ear reference).
+ */
+function earHides(k) {
+  const { earBatch, earReference } = test.cfg;
+  return earBatch > 1 ? k % earBatch !== 0 : !(earReference && k === 0);
+}
+
 /** Items heard together in ear mode: the batch (of ear batch size) holding `index`. */
 function earBatchRange(index) {
   const n = test.cfg.earBatch;
@@ -435,11 +444,20 @@ function earBatchRange(index) {
   return [start, Math.min(start + n, test.engine.items.length)];
 }
 
-/** Play notes (or chords) one after another, each for a moment. */
-function playSequence(items) {
+/** Play items [a, b) one after another, each for a moment; each note pulses on the staff as it sounds. */
+function playSequence(a, b) {
   earSequence.forEach(clearTimeout);
   audio.unlock();
-  earSequence = items.map((item, i) => setTimeout(() => audio.play(item.notes.map(midiOf), 0.9), i * EAR_SEQUENCE_GAP_MS));
+  const { items } = test.engine;
+  earSequence = [];
+  for (let i = a; i < b; i++) {
+    earSequence.push(
+      setTimeout(() => {
+        audio.play(items[i].notes.map(midiOf), 0.9);
+        view?.pulse(i);
+      }, (i - a) * EAR_SEQUENCE_GAP_MS),
+    );
+  }
 }
 
 /**
@@ -451,17 +469,17 @@ function playCurrent() {
   const item = engine?.items[engine.index];
   if (!item || engine.state === "done") return false;
   if (test.cfg.ear && test.cfg.earBatch > 1) {
-    const [a, b] = earBatchRange(engine.index);
-    playSequence(engine.items.slice(a, b));
+    playSequence(...earBatchRange(engine.index));
     return true;
   }
   audio.unlock();
+  view?.pulse(engine.index);
   return audio.play(item.notes.map(midiOf));
 }
 
 /**
  * Ear mode: after a short pause, play the next batch ("batch", only when the current note starts one)
- * or just the current note ("current", e.g. after a wrong note).
+ * or just the current note ("current", e.g. after a miss in attack mode).
  */
 function scheduleEarPlay(delay, what = "batch") {
   clearTimeout(earTimer);
@@ -470,8 +488,7 @@ function scheduleEarPlay(delay, what = "batch") {
   if (what === "batch" && engine.index !== earBatchRange(engine.index)[0]) return; // mid-batch: keep going from memory
   earTimer = setTimeout(() => {
     if (what === "current") {
-      const item = engine.items[engine.index];
-      if (item) playSequence([item]);
+      if (engine.items[engine.index]) playSequence(engine.index, engine.index + 1);
     } else playCurrent();
   }, delay);
 }
@@ -611,11 +628,11 @@ function drawAttack() {
   // Ear: unplayed notes are hidden. Memory: notes come in groups (memory batch); once a group's first
   // note is played, the rest of it hides. Later groups stay visible until their turn.
   const applyHiding = () => {
-    const { ear, earReference, memory, memoryBatch } = test.cfg;
+    const { ear, memory, memoryBatch } = test.cfg;
     if (!ear && !memory) return;
     for (let k = base; k < end; k++) {
       if (engine.states[k] !== "pending") continue;
-      const hide = ear ? !(earReference && k === 0) : engine.index > Math.floor(k / memoryBatch) * memoryBatch;
+      const hide = ear ? earHides(k) : engine.index > Math.floor(k / memoryBatch) * memoryBatch;
       handle.setHidden(k - base, hide && !test.revealed.has(k));
     }
   };
@@ -646,6 +663,9 @@ function drawAttack() {
     },
     markMissed(index) {
       if (index >= base && index < end) handle.setState(index - base, stateOf(index));
+    },
+    pulse(index) {
+      if (index >= base && index < end) handle.pulse(index - base);
     },
     setBlink(on) {
       handle?.setCaretBlink(on);
@@ -723,11 +743,33 @@ function renderMeta() {
   const key = `${keyName(fifths, minor, harmonic)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
   const levelLabel = rank.level ? rank.level.id : "custom";
-  const level = `<button class="meta-pick${rank.ranked ? " ranked" : ""}" data-pick="level"${tipAttr(rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings")}>${rank.ranked ? icon("crown") : ""}${levelLabel}</button> · `;
-  const chords = `<button class="meta-pick" data-pick="chords">${cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes"}</button>`;
-  const leap = `<button class="meta-pick" data-pick="maxLeap">max leap: ${valueLabel("maxLeap", cfg.maxLeap)}</button>`;
-  const ledger = `<button class="meta-pick" data-pick="ledgerLines">${ledgerLabel(cfg.ledgerLines)}</button>`;
-  els.meta.innerHTML = `${level}<button class="meta-pick" data-pick="clef">${clef}</button> · <button class="meta-pick" data-pick="keySignature">${key}</button> · ${chords} · ${leap} · ${ledger}`;
+  const picks = [
+    {
+      pick: "level",
+      cls: rank.ranked ? "ranked" : "",
+      tip: rank.ranked ? `ranked: ${rank.level.text}` : rank.level ? `practice: ${rank.reason}` : "practice: custom settings",
+      html: `${rank.ranked ? icon("crown") : ""}${levelLabel}`,
+    },
+    { pick: "clef", html: clef },
+    { pick: "keySignature", html: key },
+    { pick: "chords", html: cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes" },
+    { pick: "maxLeap", html: `max leap: ${valueLabel("maxLeap", cfg.maxLeap)}` },
+    { pick: "ledgerLines", html: ledgerLabel(cfg.ledgerLines) },
+  ];
+  // Update the buttons in place when they're already there, so an open dropdown keeps its anchor.
+  const existing = [...els.meta.querySelectorAll("[data-pick]")];
+  if (existing.length === picks.length && existing.every((b, i) => b.dataset.pick === picks[i].pick)) {
+    picks.forEach((p, i) => {
+      const b = existing[i];
+      b.className = `meta-pick${p.cls ? ` ${p.cls}` : ""}`;
+      if (p.tip) b.dataset.tip = p.tip;
+      if (b.innerHTML !== p.html) b.innerHTML = p.html;
+    });
+    return;
+  }
+  els.meta.innerHTML = picks
+    .map((p) => `<button class="meta-pick${p.cls ? ` ${p.cls}` : ""}" data-pick="${p.pick}"${tipAttr(p.tip)}>${p.html}</button>`)
+    .join(" · ");
 }
 
 function onMetaClick(e) {
@@ -735,31 +777,32 @@ function onMetaClick(e) {
   if (!btn) return;
   const key = btn.dataset.pick;
   if (key === "level") {
-    const current = matchingLevel(settings.all())?.id;
-    return openMenu(btn, [
-      ...LEVELS.map((l) => ({ label: l.id, tip: l.text, active: current === l.id, run: () => applyLevel(l.id) })),
-      { label: "custom", tip: "your own settings (practice)", active: !current, run: restoreCustom },
-    ]);
+    return openMenu(btn, () => {
+      const current = matchingLevel(settings.all())?.id;
+      return [
+        ...LEVELS.map((l) => ({ label: l.id, tip: l.text, active: current === l.id, run: () => applyLevel(l.id) })),
+        { label: "custom", tip: "your own settings (practice)", active: !current, run: restoreCustom },
+      ];
+    });
   }
-  if (key === "keySignature") return openMenu(btn, keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
+  if (key === "keySignature") return openMenu(btn, () => keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
   if (key === "chords") {
     // single notes, or chords ▸ with columns for density, style and size (any pick turns chords on)
-    const s = settings.all();
     const pick = (k, v) => () => {
       settings.set(k, v);
       settings.set("chords", true);
     };
-    const column = (title, k) => ({ title, items: OPTIONS[k].map((v) => ({ label: valueLabel(k, v), active: s.chords && s[k] === v, run: pick(k, v) })) });
-    return openMenu(btn, [
-      { label: "single notes", active: !s.chords, run: () => settings.set("chords", false) },
-      { label: "chords", active: s.chords, sub: [column("density", "chordPower"), column("style", "chordStyle"), column("max notes", "maxChordNotes")] },
-    ]);
+    return openMenu(btn, () => {
+      const s = settings.all();
+      const column = (title, k) => ({ title, items: OPTIONS[k].map((v) => ({ label: valueLabel(k, v), active: s.chords && s[k] === v, run: pick(k, v) })) });
+      return [
+        { label: "single notes", active: !s.chords, run: () => settings.set("chords", false) },
+        { label: "chords", active: s.chords, sub: [column("density", "chordPower"), column("style", "chordStyle"), column("max notes", "maxChordNotes")] },
+      ];
+    });
   }
   const label = (v) => (key === "ledgerLines" ? ledgerLabel(v) : valueLabel(key, v));
-  openMenu(
-    btn,
-    OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })),
-  );
+  openMenu(btn, () => OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })));
 }
 
 const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
@@ -789,6 +832,7 @@ function onInput(ev) {
   piano?.flash(ev.midi, out.correct ? "correct" : "error");
   if (!out.correct) onWrong(before);
   if (out.resolved) {
+    if (test.cfg.ear && !test.attack) test.revealed.add(before); // found by ear: stays visible after a rewind
     view?.update(before);
     updateLights();
     scheduleEarPlay(EAR_NEXT_DELAY_MS);
@@ -799,23 +843,36 @@ function onInput(ev) {
 }
 
 /**
- * Wrong note: shake the note. A hidden note (memory or ear mode) can't be skipped, so it is
- * revealed: right away in memory mode, after a few tries in ear mode (which replays it each time).
+ * Wrong note: shake the note. Memory and ear mode then go back to the start of the group, which has
+ * to be played again in full: memory shows the group again until its first note is played; ear mode
+ * replays the group, keeping the notes found so far visible (and reveals a note after a few wrong tries).
+ * Attack mode can't go back (the notes keep coming), so a hidden note is just revealed.
  */
 function onWrong(index) {
-  const { cfg } = test;
+  const { cfg, engine } = test;
   if (settings.get("errorSound")) audio.error();
   view?.shakeItem(index);
   if (test.cfg.keyLights === "mistake") {
     test.lightIndex = index;
     updateLights();
   }
+  const rewindTo = (start) => {
+    if (start >= engine.index) return;
+    const from = engine.index;
+    engine.rewind(start);
+    view?.rewind(from);
+  };
   if (cfg.ear) {
     const wrongs = (test.wrongs.get(index) ?? 0) + 1;
     test.wrongs.set(index, wrongs);
     if (wrongs >= EAR_REVEAL_AFTER) view?.reveal(index);
-    scheduleEarPlay(EAR_WRONG_DELAY_MS, "current");
-  } else if (cfg.memory) view?.reveal(index);
+    if (test.attack) return scheduleEarPlay(EAR_WRONG_DELAY_MS, "current");
+    rewindTo(earBatchRange(index)[0]);
+    scheduleEarPlay(EAR_WRONG_DELAY_MS);
+  } else if (cfg.memory) {
+    if (test.attack) return view?.reveal(index);
+    rewindTo(Math.floor(index / cfg.memoryBatch) * cfg.memoryBatch);
+  }
 }
 
 function onStart() {
@@ -967,7 +1024,9 @@ function draw({ enter = null, fast = false } = {}) {
   const staffSpace = STAFF_SPACE[s.noteSize];
   const width = els.staff.clientWidth;
   const layout = { ...genOpts, noteNames: s.noteNames };
-  const capacity = lineCapacity(width / staffSpace, layout);
+  let capacity = lineCapacity(width / staffSpace, layout);
+  // Ear groups stay on one line, so a rewind to a group's start never goes back a line.
+  if (cfg.ear && cfg.earBatch > 1 && capacity >= cfg.earBatch) capacity -= capacity % cfg.earBatch;
   const memory = cfg.memory && !cfg.ear;
   const pageSize = memory ? cfg.memoryBatch : capacity;
   const pageOf = (i) => Math.floor(Math.min(i, engine.items.length - 1) / pageSize);
@@ -1022,17 +1081,17 @@ function draw({ enter = null, fast = false } = {}) {
   };
   placeCaret(engine.index);
 
-  // Hidden notes. Ear mode: every unplayed note is hidden (except the first, as a pitch reference,
-  // if enabled). Memory mode: once the first note of the batch is played, the rest of it fades out.
-  // Notes revealed after wrong tries (see onWrong) stay visible.
+  // Hidden notes. Ear mode: unplayed notes are hidden except each group's first (see earHides).
+  // Memory mode: once the first note of the batch is played, the rest of it fades out (and shows
+  // again after a rewind to the batch start). Notes revealed in ear mode (see onWrong) stay visible.
   const applyHiding = () => {
-    const { ear, earReference } = cfg;
+    const { ear } = cfg;
     if (!memory && !ear) return;
     for (const { handle, startIndex, count } of lines) {
       for (let k = 0; k < count; k++) {
         const index = startIndex + k;
         if (engine.states[index] !== "pending") continue;
-        const hide = ear ? !(earReference && index === 0) : engine.index > pageStart;
+        const hide = ear ? earHides(index) : engine.index > pageStart;
         handle.setHidden(k, hide && !test.revealed.has(index));
       }
     }
@@ -1109,6 +1168,22 @@ function draw({ enter = null, fast = false } = {}) {
       if (hurry()) return;
       const loc = locate(index);
       loc?.line.handle.setHidden(loc.k, false);
+    },
+    /** After engine.rewind: items from the new current one up to `from` are pending again. */
+    rewind(from) {
+      if (hurry()) return;
+      if (pageOf(engine.index) !== page) return draw();
+      for (let i = engine.index; i <= from; i++) {
+        const loc = locate(i);
+        loc?.line.handle.setState(loc.k, engine.states[i]);
+      }
+      placeCaret(engine.index);
+      applyHiding();
+    },
+    pulse(index) {
+      if (transition) return;
+      const loc = locate(index);
+      loc?.line.handle.pulse(loc.k);
     },
     setBlink(on) {
       lines.forEach((ln) => ln.handle.setCaretBlink(on));

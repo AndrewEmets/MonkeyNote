@@ -19,7 +19,7 @@ export function computeResults(engine, cfg, { peakNpm = 0 } = {}) {
   const minutes = durationMs / 60000;
   const resolved = engine.results.filter((r) => r.t <= end);
   const timed = resolved.slice(1).filter((r) => !r.missed); // attack: missed notes aren't speed
-  const presses = engine.presses.filter((p) => p.t <= end);
+  const presses = engine.presses.filter((p) => p.t <= end && !(p.replay && p.correct)); // replays after a rewind don't add to accuracy
   const correctPresses = presses.filter((p) => p.correct).length;
 
   const gaps = [];
