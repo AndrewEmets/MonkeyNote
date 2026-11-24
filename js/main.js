@@ -5,23 +5,24 @@ import { initMidi, keyLights, midiOut, onMidiChange } from "./midi.js";
 import { input } from "./input.js";
 import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
-import { initTooltips } from "./tooltip.js";
+import { initTooltips, tipAttr } from "./tooltip.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.13.0";
+export const VERSION = "0.14.0";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
 
 function renderHeader() {
   document.getElementById("top").innerHTML = `
-    <a class="logo" href="#" aria-label="monkeyscore">${icon("logo")}<span class="name">monkeyscore</span></a>
+    <a class="logo" href="#" aria-label="monkeyscore">${icon("logo")}<span class="name"><span class="name-full">monkeyscore</span><span class="name-short">ms</span></span></a>
     <nav class="nav">
       <a href="#" aria-label="start test">${icon("piano")}</a>
       <a href="#stats" aria-label="stats">${icon("chart")}</a>
       <a href="#settings" aria-label="settings">${icon("gear")}</a>
+      <button class="nav-user" aria-label="user settings"${tipAttr("user settings (coming soon)")}>${icon("user")}</button>
     </nav>`;
 }
 

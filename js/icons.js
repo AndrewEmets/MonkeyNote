@@ -49,6 +49,7 @@ const ICONS = {
   search: () => stroked(`<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>`),
   chevron: () => stroked(`<path d="m6 9 6 6 6-6"/>`),
   chevronRight: () => stroked(`<path d="m9 6 6 6-6 6"/>`),
+  user: () => stroked(`<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>`),
   arrowUp: () => stroked(`<path d="M12 19V5M5 12l7-7 7 7"/>`),
   code: () => stroked(`<path d="m8 6-6 6 6 6M16 6l6 6-6 6"/>`),
   check: () => stroked(`<path d="m5 12 5 5 9-10"/>`),

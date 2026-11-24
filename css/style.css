@@ -116,6 +116,11 @@ a {
   width: 2.25rem;
   height: 2.25rem;
   color: var(--main-color);
+  transform: translateY(0.2rem); /* the noteheads sit low: line their weight up with the lowercase name */
+}
+
+.logo .name-short {
+  display: none;
 }
 
 .logo .name {
@@ -129,7 +134,8 @@ a {
   gap: 0.25rem;
 }
 
-.nav a {
+.nav a,
+.nav button {
   color: var(--sub-color);
   padding: 0.5rem;
   border-radius: var(--radius);
@@ -137,8 +143,14 @@ a {
   font-size: 1.25rem;
 }
 
-.nav a:hover {
+.nav a:hover,
+.nav button:hover {
   color: var(--text-color);
+}
+
+/* placeholder until user settings exist */
+.nav .nav-user {
+  cursor: default;
 }
 
 /* page */
@@ -2094,7 +2106,8 @@ svg.staff .caret.shake > * {
   }
 }
 
-/* short screens (a phone held sideways): tighter spacing, no keyboard hints, one staff line (test.js) */
+/* short screens (a phone held sideways): short name, header and test bar on one row, tighter spacing,
+   no keyboard hints, shorter on-screen keys, one staff line (test.js) */
 
 @media (max-height: 500px) {
   #app {
@@ -2104,20 +2117,87 @@ svg.staff .caret.shake > * {
   }
 
   .logo .name {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
+  }
+
+  .logo .name-full {
+    display: none;
+  }
+
+  .logo .name-short {
+    display: inline;
   }
 
   .logo .icon {
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    transform: translateY(0.12rem);
+  }
+
+  .nav a,
+  .nav button {
+    padding: 0.35rem;
+    font-size: 1.1rem;
+  }
+
+  /* Test page: its parts join the page grid, so the test bar sits beside the header. */
+  #app:has(#page[data-page="test"]) {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    align-items: center;
+  }
+
+  #page[data-page="test"],
+  #page[data-page="test"] > .test-page {
+    display: contents;
+  }
+
+  #page[data-page="test"] .test-page > *,
+  #app:has(#page[data-page="test"]) > #bottom {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  #page[data-page="test"] .test-page > .test-area {
+    align-self: center;
+  }
+
+  #app:has(#page[data-page="test"]) > #bottom {
+    justify-self: stretch;
+  }
+
+  #page[data-page="test"] .test-page > .config-bar {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  #top {
+    column-gap: 0.75rem;
+  }
+
+  .config-bar {
+    padding: 0 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .config-bar .text-button {
+    gap: 0.25rem;
+    padding: 0.45rem 0.25rem;
+  }
+
+  .config-bar .group-icon {
+    padding: 0 0.15rem 0 0.25rem;
+  }
+
+  .config-bar .divider {
+    display: block;
+    height: 1.2rem;
+    margin: 0 0.25rem;
   }
 
   .test-page {
     gap: 0.5rem;
-  }
-
-  .config-bar .text-button {
-    padding: 0.4rem 0.4rem;
   }
 
   .test-meta {
@@ -2127,6 +2207,14 @@ svg.staff .caret.shake > * {
   .input-hint,
   .keytips {
     display: none;
+  }
+
+  .piano {
+    height: 4rem;
+  }
+
+  .piano .white {
+    padding-bottom: 0.15rem;
   }
 
   .restart-button {

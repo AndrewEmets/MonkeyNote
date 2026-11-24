@@ -38,8 +38,10 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 - **Groups** (memory batch, ear group): a line holds whole groups when they fit, and divider lines (when on)
   mark the groups instead of every 4 notes. The quick picks in the test bar (2/4/8 and 2/3/4 by default)
   can be changed in the custom prompt; a custom value shows as the wrench and the number.
-- **Short screens** (a phone held sideways, height ≤ 500px): tighter spacing, no keyboard hints, one staff
-  line, so the test fits without scrolling (the on-screen keyboard doesn't fit yet).
+- **Short screens** (a phone held sideways, height ≤ 500px): the name shortens to "ms", the test bar moves up
+  beside it, tighter spacing, no keyboard hints, shorter on-screen keys and one staff line, so the test fits
+  without scrolling (on-screen keyboard included from ~840px wide).
+- **Header**: logo, test / stats / settings, and a user-settings button (placeholder for now).
 - **Footer**: shortcut hints, theme name (click to open theme picker).
 - **Shortcuts**: Tab restarts; Esc or Ctrl/Cmd+Shift+P opens the command palette: search every setting
   and action, settings open a submenu of their values, themes preview as you move through them.

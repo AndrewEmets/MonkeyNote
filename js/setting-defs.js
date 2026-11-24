@@ -78,7 +78,7 @@ export const DEFS = {
   // appearance
   noteSize: { title: "note size", icon: "size", text: "Size of the staff and notes." },
   staffLines: { title: "staff lines", icon: "lines", text: "How many lines of notes to show at once, so you can read ahead." },
-  barLines: { title: "divider lines", icon: "lines", text: "A thin line between every 4 notes (between groups in memory and ear mode), to help you keep your place.", labels: { 0: "off", 4: "every 4 notes" } },
+  barLines: { title: "divider lines", icon: "lines", text: "Thin lines that split the notes into groups, to help you keep your place: every 4 notes, or between the groups in memory and ear mode.", labels: { 0: "off", 4: "on" } },
   caretStyle: { title: "caret style", icon: "caret", text: "Shape of the marker on the note to play next.", labels: { line: "|", block: "▮", outline: "▯", underline: "_" } },
   paceCaret: {
     title: "pace caret",
