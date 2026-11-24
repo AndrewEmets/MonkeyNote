@@ -184,6 +184,19 @@ a {
   max-width: 100%;
 }
 
+/* two sections: presentation (+ batch) and mode (+ length); they wrap as whole rows */
+.config-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  max-width: 100%;
+}
+
+.config-bar.wrapped .section-divider {
+  display: none;
+}
+
 .config-bar .group {
   display: flex;
   flex-wrap: nowrap;

@@ -94,7 +94,9 @@ export function mount(container) {
   root = document.createElement("div");
   root.className = "test-page";
   root.innerHTML = `
-    <div class="config-bar" role="toolbar" aria-label="test configuration"></div>
+    <div class="config-bar" role="toolbar" aria-label="test configuration">
+      <div class="config-section" data-section="presentation"></div><span class="divider section-divider"></span><div class="config-section" data-section="mode"></div>
+    </div>
     <div class="test-area">
       <div class="test-top"><div class="test-counter"></div><div class="test-meta"></div></div>
       <div class="staff-wrap"></div>
@@ -107,6 +109,8 @@ export function mount(container) {
   container.appendChild(root);
   els = {
     config: root.querySelector(".config-bar"),
+    configPresentation: root.querySelector('[data-section="presentation"]'),
+    configMode: root.querySelector('[data-section="mode"]'),
     area: root.querySelector(".test-area"),
     counter: root.querySelector(".test-counter"),
     meta: root.querySelector(".test-meta"),
@@ -126,8 +130,14 @@ export function mount(container) {
   document.addEventListener("keydown", onKeyDown);
   window.addEventListener("monkeyscore:restart", restart);
   document.addEventListener("mousemove", exitFocusMode);
-  resizeObserver = new ResizeObserver(() => draw());
+  resizeObserver = new ResizeObserver((entries) => {
+    for (const { target } of entries) {
+      if (target === els.staff) draw();
+      else markConfigWrap();
+    }
+  });
   resizeObserver.observe(els.staff);
+  resizeObserver.observe(els.config);
 
   keyboardInput.setOctave(DEFAULT_OCTAVE[settings.get("clef")]);
   keyboardInput.attach();
@@ -293,6 +303,9 @@ function renderConfig() {
       )}`,
     });
   }
+  // Second section (wraps to its own row as a whole when the bar doesn't fit on one): mode and length.
+  syncGroups(els.configPresentation, groups);
+  groups.length = 0;
   groups.push({ id: "modes", html: MODES.map(([mode, ic]) => button("mode", mode, mode, ic, s.mode === mode)).join("") });
   const [valueKey, values] = MODE_VALUES[s.mode] ?? [];
   if (valueKey) {
@@ -303,7 +316,14 @@ function renderConfig() {
         (CUSTOM_LENGTH[valueKey] ? custom("length-custom", !values.includes(s[valueKey]), s[valueKey], `custom ${CUSTOM_LENGTH[valueKey].title}`) : ""),
     });
   }
-  syncGroups(els.config, groups);
+  syncGroups(els.configMode, groups);
+  markConfigWrap();
+}
+
+/** When the two sections sit on separate rows, drop the divider between them. */
+function markConfigWrap() {
+  const { configPresentation: a, configMode: b } = els;
+  els.config.classList.toggle("wrapped", b.offsetTop > a.offsetTop + a.offsetHeight / 2);
 }
 
 const GROUP_MS = 260;
