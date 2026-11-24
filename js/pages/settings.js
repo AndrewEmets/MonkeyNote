@@ -17,7 +17,7 @@ import { audio } from "../audio.js";
 // Rows are setting keys (described in setting-defs.js) or custom renderers.
 const SECTIONS = [
   { id: "input", title: "input", icon: "keyboard", rows: [midiRow, midiRangeRow, "fitRange", "keyLights", "keyLightChannel", "chordWindow", "ignoreOctave", "onScreenKeyboard", "keyLabels"] },
-  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", soundOutputRow, "instrument", volumeRow, "errorSound", "earReference"] },
+  { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", soundOutputRow, "instrument", volumeRow, "errorSound"] },
   {
     id: "notation",
     title: "notation",

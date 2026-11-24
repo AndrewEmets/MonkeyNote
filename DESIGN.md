@@ -35,6 +35,11 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
   the text color; notes that needed correction the error-extra color.
 - **Below test**: restart button; on-screen keyboard when enabled.
 - **Caret**: stretches to cover notes on ledger lines; on the grand staff it spans both staves.
+- **Groups** (memory batch, ear group): a line holds whole groups when they fit, and divider lines (when on)
+  mark the groups instead of every 4 notes. The quick picks in the test bar (2/4/8 and 2/3/4 by default)
+  can be changed in the custom prompt; a custom value shows as the wrench and the number.
+- **Short screens** (a phone held sideways, height ≤ 500px): tighter spacing, no keyboard hints, one staff
+  line, so the test fits without scrolling (the on-screen keyboard doesn't fit yet).
 - **Footer**: shortcut hints, theme name (click to open theme picker).
 - **Shortcuts**: Tab restarts; Esc or Ctrl/Cmd+Shift+P opens the command palette: search every setting
   and action, settings open a submenu of their values, themes preview as you move through them.
@@ -53,16 +58,15 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 Toggles (combine with notes / time / attack):
 
 - **chords**: items become chords; played together.
-- **memory**: notes come in batches of 2 / 4 / 8 / custom (1–32), chosen in the test bar. The whole batch
-  is shown; once its first note is played the rest fade out; when the batch is done the next one appears.
+- **memory**: notes come in batches of 2 / 4 / 8 / custom (1–32), chosen in the test bar. All lines show as
+  in other modes; every batch is visible until its first note is played, then the rest of it fades out.
   A wrong note sends the caret back to the batch start and shows the whole batch again; it hides once the
-  batch's first note is played, and the whole batch has to be played again. In attack mode the groups scroll in visible; once a group's first note is played the rest of it hides
-  (a missed note is revealed). Memory and ear are exclusive (ear already hides notes).
-- **ear**: notes (or chords) are played as audio, 1 / 2 / 3 / custom (1–8) in a row (ear batch), and stay hidden
-  on the staff until you play them; the next batch plays once the last one is done. Each note pulses as it
-  sounds. With 2 or more, the first note of every batch is always shown (relative hearing: hear the rest
-  against it); one at a time, the test's first note is shown as a reference (setting). Batches never
-  straddle a line. Replay (the whole batch) with space, the replay button, or the MIDI sustain pedal.
+  batch's first note is played, and the whole batch has to be played again. In attack mode the groups
+  scroll in visible; once a group's first note is played the rest of it hides (a missed note is revealed).
+  Memory and ear are exclusive (ear already hides notes).
+- **ear**: notes (or chords) are played as audio in groups of 2 / 3 / 4 / custom (2–8), and stay hidden on
+  the staff until you play them; the next group plays once the last one is done. Each note pulses as it
+  sounds. The first note of every group is always shown (relative hearing: hear the rest against it). Replay (the whole batch) with space, the replay button, or the MIDI sustain pedal.
   A wrong note sends the caret back to the batch start and replays the batch; notes found so far stay
   shown, but the whole batch has to be played again. After 3 wrong tries on a note it is shown.
   Replayed notes keep their first result (no new speed or accuracy credit; wrong notes still count).
@@ -185,7 +189,7 @@ back-to-top button once scrolled down:
 
 - **behavior**: (reserved) quick restart, test length defaults.
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.
-- **sound**: play notes you press (off / keyboard & screen / all), instrument, volume, error sound, ear-mode reference.
+- **sound**: play notes you press (off / keyboard & screen / all), instrument, volume, error sound.
 - **notation**: clef, range, key signature, accidentals, max leap, chord style, note size, show note names (helper).
 - **appearance**: note size, staff lines, caret style, smooth caret, flip test colors, font.
 - **theme**: random theme (each test), custom theme (8 color pickers, starting from the current theme), preset grid with search and hover preview. The tab icon takes the theme's colors.

@@ -59,7 +59,7 @@ const DEFAULT_OCTAVE = { treble: 4, bass: 2, grand: 3 }; // octave of the Z key 
 const RESTART_KEYS = new Set([
   "mode", "notesCount", "timeLimit", "attackSpeed", "chords", "memory", "ear",
   "clef", "keySignature", "accidentals", "ledgerLines", "maxChordNotes", "maxLeap", "chordStyle",
-  "chordWindow", "ignoreOctave", "fitRange", "earReference", "memoryBatch", "earBatch", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
+  "chordWindow", "ignoreOctave", "fitRange", "memoryBatch", "earBatch", "memoryPresets", "earPresets", "chordPower", "paceCaret", "paceCaretNpm", "keyLights", "keyLightChannel",
 ]);
 const REDRAW_KEYS = new Set(["noteSize", "caretStyle", "smoothCaret", "fontFamily", "staffLines", "noteNames", "barLines"]);
 const PIANO_KEYS = new Set(["onScreenKeyboard", "keyLabels", "clef", "ledgerLines"]);
@@ -131,7 +131,10 @@ export function mount(container) {
 
   keyboardInput.setOctave(DEFAULT_OCTAVE[settings.get("clef")]);
   keyboardInput.attach();
+  const onScreenHeight = () => draw();
+  SHORT_SCREEN.addEventListener("change", onScreenHeight);
   cleanups = [
+    () => SHORT_SCREEN.removeEventListener("change", onScreenHeight),
     () => keyboardInput.detach(),
     input.subscribe(onInput),
     onMidiChange(() => {
@@ -252,16 +255,15 @@ function stopAutoplay() {
 
 // ---- config bar ----
 
-const MEMORY_BATCHES = [2, 4, 8];
-const EAR_BATCHES = [1, 2, 3];
 
 
 function renderConfig() {
   const s = settings.all();
   const button = (key, value, label, iconName, active) =>
     `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+  // Custom value button: the wrench, plus the value when it's the one in use.
   const custom = (action, isCustom, value, tip) =>
-    `<button class="text-button${isCustom ? " active" : ""}" data-action="${action}"${tipAttr(tip)}>${isCustom ? value : icon("wrench")}</button>`;
+    `<button class="text-button custom-pick${isCustom ? " active" : ""}" data-action="${action}"${tipAttr(tip)}>${icon("wrench")}${isCustom ? `<span>: ${value}</span>` : ""}</button>`;
   const current = presentationOf(s);
   const groups = [
     {
@@ -273,21 +275,21 @@ function renderConfig() {
   if (s.memory) {
     groups.push({
       id: "batch-memory",
-      html: `<span class="group-icon">${icon("eyeOff")}</span>${MEMORY_BATCHES.map((v) => button("memoryBatch", v, v, null, s.memoryBatch === v)).join("")}${custom(
+      html: `<span class="group-icon">${icon("eyeOff")}</span>${s.memoryPresets.map((v) => button("memoryBatch", v, v, null, s.memoryBatch === v)).join("")}${custom(
         "memory-custom",
-        !MEMORY_BATCHES.includes(s.memoryBatch),
+        !s.memoryPresets.includes(s.memoryBatch),
         s.memoryBatch,
-        "custom batch size",
+        "custom batch size and quick picks",
       )}`,
     });
   } else if (s.ear) {
     groups.push({
       id: "batch-ear",
-      html: `<span class="group-icon">${icon("ear")}</span>${EAR_BATCHES.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("")}${custom(
+      html: `<span class="group-icon">${icon("ear")}</span>${s.earPresets.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("")}${custom(
         "ear-custom",
-        !EAR_BATCHES.includes(s.earBatch),
+        !s.earPresets.includes(s.earBatch),
         s.earBatch,
-        "custom number of notes heard in a row",
+        "custom group size and quick picks",
       )}`,
     });
   }
@@ -358,19 +360,22 @@ function syncGroups(container, groups) {
   });
 }
 
+/** Custom batch size, with the test bar's quick picks editable in the same prompt. */
+async function askBatch(key, presetsKey, title, min, max) {
+  const r = await askNumber({ title, value: settings.get(key), min, max, presets: settings.get(presetsKey) });
+  if (!r) return;
+  settings.set(presetsKey, r.presets);
+  settings.set(key, r.value);
+}
+
 async function onConfigClick(e) {
   const btn = e.target.closest("button");
   if (!btn) return;
   btn.blur();
   if (btn.dataset.key) settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
   else if (btn.dataset.action === "presentation") setPresentation(btn.dataset.value);
-  else if (btn.dataset.action === "ear-custom") {
-    const n = await askNumber({ title: "notes heard in a row", value: settings.get("earBatch"), min: 1, max: 8 });
-    if (n !== null) settings.set("earBatch", n);
-  } else if (btn.dataset.action === "memory-custom") {
-    const n = await askNumber({ title: "notes to memorize", value: settings.get("memoryBatch"), min: 1, max: 32 });
-    if (n !== null) settings.set("memoryBatch", n);
-  } else if (btn.dataset.action === "length-custom") {
+  else if (btn.dataset.action === "ear-custom") askBatch("earBatch", "earPresets", "notes heard in a row", 2, 8);
+  else if (btn.dataset.action === "memory-custom") askBatch("memoryBatch", "memoryPresets", "notes to memorize", 1, 32); else if (btn.dataset.action === "length-custom") {
     const key = MODE_VALUES[settings.get("mode")][0];
     const { title, min, max } = CUSTOM_LENGTH[key];
     const n = await askNumber({ title, value: settings.get(key), min, max });
@@ -428,14 +433,13 @@ function renderHint() {
 const EAR_SEQUENCE_GAP_MS = 650; // between notes heard in a row (ear batch of 2 or 3)
 let earSequence = []; // timers of a sequence being played
 
-/**
- * Ear mode: whether unplayed item k is hidden. Groups of 2 or more: all but each group's first note
- * (a known pitch to hear the rest against). One note at a time: all but the test's first (ear reference).
- */
-function earHides(k) {
-  const { earBatch, earReference } = test.cfg;
-  return earBatch > 1 ? k % earBatch !== 0 : !(earReference && k === 0);
-}
+/** Notes per group: memory batch or ear group (0 otherwise). */
+const groupSize = (cfg) => (cfg.ear ? cfg.earBatch : cfg.memory ? cfg.memoryBatch : 0);
+/** Divider lines (when on): between groups in memory and ear mode, else every 4 notes. */
+const dividerEvery = (s, cfg) => (s.barLines ? groupSize(cfg) || s.barLines : 0);
+
+/** Ear mode: whether unplayed item k is hidden: all but each group's first note (a known pitch to hear the rest against). */
+const earHides = (k) => k % test.cfg.earBatch !== 0;
 
 /** Items heard together in ear mode: the batch (of ear batch size) holding `index`. */
 function earBatchRange(index) {
@@ -616,7 +620,7 @@ function drawAttack() {
     if (a.distance === null) a.distance = x0 - (hitX + 0.35 * (W - hitX)); // first note starts a third of the way in
     base = Math.max(0, Math.floor((a.distance - (x0 - hitX)) / slot) - 1);
     end = Math.min(engine.items.length, base + Math.ceil((W - hitX) / slot) + 8);
-    handle = renderStaff(els.staff, { ...layout, items: engine.items.slice(base, end), indexOffset: base, barEvery: s.barLines, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: false });
+    handle = renderStaff(els.staff, { ...layout, items: engine.items.slice(base, end), indexOffset: base, barEvery: dividerEvery(s, test.cfg), width, staffSpace, caretStyle: s.caretStyle, smoothCaret: false });
     for (let k = base; k < end; k++) handle.setState(k - base, stateOf(k));
     handle.setCaret(engine.index - base);
     view.attack = { x0, hitX, slot };
@@ -1002,11 +1006,12 @@ const LINE_HOLD_MS = 200; // when the line leaves (no next line visible), first 
 const LINE_EASING = "cubic-bezier(0.3, 0, 0.2, 1)";
 const HURRY_RATE = 4; // playing during a line change speeds the animation up instead of cutting it
 let transition = null; // { anims, fast, shakes }
+const SHORT_SCREEN = window.matchMedia("(max-height: 500px)"); // matches the compact layout in style.css
 
 /**
  * Draw the visible staff lines and set `view`.
- * Normal: the current item's line, then the next ones (staff lines setting).
- * Memory (without ear): only the current batch of N notes (memory batch setting), wrapped if needed.
+ * The current item's line, then the next ones (staff lines setting). With memory or ear groups, a line
+ * holds whole groups when they fit.
  * opts.enter: after a line change, how many leading rows were already on screen (the rest fade in);
  * opts.fast: quicker fade-in.
  */
@@ -1025,25 +1030,22 @@ function draw({ enter = null, fast = false } = {}) {
   const width = els.staff.clientWidth;
   const layout = { ...genOpts, noteNames: s.noteNames };
   let capacity = lineCapacity(width / staffSpace, layout);
-  // Ear groups stay on one line, so a rewind to a group's start never goes back a line.
-  if (cfg.ear && cfg.earBatch > 1 && capacity >= cfg.earBatch) capacity -= capacity % cfg.earBatch;
+  // Groups (memory batch, ear group) stay on one line when they fit, so a rewind to a group's start
+  // doesn't go back a line.
+  const group = groupSize(cfg);
+  if (group > 1 && capacity >= group) capacity -= capacity % group;
   const memory = cfg.memory && !cfg.ear;
-  const pageSize = memory ? cfg.memoryBatch : capacity;
-  const pageOf = (i) => Math.floor(Math.min(i, engine.items.length - 1) / pageSize);
+  const pageOf = (i) => Math.floor(Math.min(i, engine.items.length - 1) / capacity);
   const page = pageOf(engine.index);
-  const pageStart = page * pageSize;
+  const pageStart = page * capacity;
 
   // Line ranges [start, end) to show.
   const ranges = [];
-  if (memory) {
-    const pageEnd = Math.min(pageStart + pageSize, engine.items.length);
-    for (let a = pageStart; a < pageEnd; a += capacity) ranges.push([a, Math.min(a + capacity, pageEnd)]);
-  } else {
-    for (let l = 0; l < s.staffLines; l++) {
-      const a = pageStart + l * capacity;
-      if (a >= engine.items.length) break;
-      ranges.push([a, Math.min(a + capacity, engine.items.length)]);
-    }
+  const rowCount = SHORT_SCREEN.matches ? 1 : s.staffLines; // a phone held sideways has room for one
+  for (let l = 0; l < rowCount; l++) {
+    const a = pageStart + l * capacity;
+    if (a >= engine.items.length) break;
+    ranges.push([a, Math.min(a + capacity, engine.items.length)]);
   }
 
   // Keep the staff area's height while lines change, so fewer rows near the end of a test
@@ -1058,7 +1060,7 @@ function draw({ enter = null, fast = false } = {}) {
     holder.className = "staff-row";
     els.staff.appendChild(holder);
     const items = engine.items.slice(a, b);
-    const handle = renderStaff(holder, { ...layout, items, indexOffset: a, barEvery: s.barLines, width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
+    const handle = renderStaff(holder, { ...layout, items, indexOffset: a, barEvery: dividerEvery(s, cfg), width, staffSpace, caretStyle: s.caretStyle, smoothCaret: s.smoothCaret });
     items.forEach((_, k) => handle.setState(k, engine.states[a + k]));
     return { handle, holder, startIndex: a, count: b - a };
   });
@@ -1082,8 +1084,8 @@ function draw({ enter = null, fast = false } = {}) {
   placeCaret(engine.index);
 
   // Hidden notes. Ear mode: unplayed notes are hidden except each group's first (see earHides).
-  // Memory mode: once the first note of the batch is played, the rest of it fades out (and shows
-  // again after a rewind to the batch start). Notes revealed in ear mode (see onWrong) stay visible.
+  // Memory mode: every batch shows until its first note is played, then the rest of it fades out
+  // (and shows again after a rewind to the batch start). Notes revealed in ear mode stay visible.
   const applyHiding = () => {
     const { ear } = cfg;
     if (!memory && !ear) return;
@@ -1091,7 +1093,7 @@ function draw({ enter = null, fast = false } = {}) {
       for (let k = 0; k < count; k++) {
         const index = startIndex + k;
         if (engine.states[index] !== "pending") continue;
-        const hide = ear ? earHides(index) : engine.index > pageStart;
+        const hide = ear ? earHides(index) : engine.index > index - (index % cfg.memoryBatch);
         handle.setHidden(k, hide && !test.revealed.has(index));
       }
     }
@@ -1110,7 +1112,7 @@ function draw({ enter = null, fast = false } = {}) {
 
   /**
    * Line change. If the next line is on screen, the caret moves to it while the rows slide up and the
-   * finished line fades out. Otherwise (memory batch, one staff line) the last note shows played with
+   * finished line fades out. Otherwise (one staff line) the last note shows played with
    * the caret past it for a moment, then the line fades out and the next one fades in.
    */
   const changeLine = (prev) => {

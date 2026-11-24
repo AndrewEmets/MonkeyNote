@@ -128,19 +128,37 @@ export function closePalette() {
  * Small number prompt in the palette's style (used for "custom" values).
  * Resolves to the number, or null if cancelled. Counts as an open palette while shown.
  */
-export function askNumber({ title, value, min, max }) {
+const stepper = () =>
+  `<span class="stepper"><button type="button" class="step" data-step="-1" aria-label="decrease">${icon("minus")}</button><button type="button" class="step" data-step="1" aria-label="increase">${icon("plus")}</button></span>`;
+
+/**
+ * Ask for a whole number in [min, max]; resolves to it, or null if cancelled.
+ * With `presets` (the test bar's quick-pick values), they can be edited too, and the result is
+ * { value, presets } (presets sorted).
+ */
+export function askNumber({ title, value, min, max, presets = null }) {
   if (overlay) closePalette();
   return new Promise((resolve) => {
     overlay = document.createElement("div");
     overlay.className = "palette-backdrop";
+    const presetRow = presets
+      ? `<div class="palette-presets"><span class="palette-presets-label">quick picks</span>${presets
+          .map((p, i) => `<span class="number-field"><input type="number" min="${min}" max="${max}" step="1" value="${p}" data-preset="${i}" aria-label="quick pick ${i + 1}" />${stepper()}</span>`)
+          .join("")}</div>`
+      : "";
     overlay.innerHTML = `
       <form class="palette palette-number" role="dialog" aria-label="${title}">
-        <div class="palette-input"><span class="palette-crumb">${title}:</span><input type="number" min="${min}" max="${max}" step="1" value="${value}" aria-label="${title}" />
-          <span class="stepper"><button type="button" class="step" data-step="-1" aria-label="decrease">${icon("minus")}</button><button type="button" class="step" data-step="1" aria-label="increase">${icon("plus")}</button></span></div>
+        <div class="palette-input number-field"><span class="palette-crumb">${title}:</span><input type="number" min="${min}" max="${max}" step="1" value="${value}" aria-label="${title}" />
+          ${stepper()}</div>
+        ${presetRow}
         <div class="palette-empty">${min}–${max} · enter to apply · esc to cancel</div>
       </form>`;
     document.body.appendChild(overlay);
     const field = overlay.querySelector("input");
+    const read = (input) => {
+      const n = Math.round(Number(input.value));
+      return Number.isFinite(n) && n >= min && n <= max ? n : null;
+    };
     const done = (result) => {
       overlay?.remove();
       overlay = null;
@@ -148,20 +166,25 @@ export function askNumber({ title, value, min, max }) {
     };
     overlay.querySelector("form").addEventListener("submit", (e) => {
       e.preventDefault();
-      const n = Math.round(Number(field.value));
-      if (Number.isFinite(n) && n >= min && n <= max) done(n);
-      else field.select();
+      const n = read(field);
+      if (n === null) return field.select();
+      if (!presets) return done(n);
+      const inputs = [...overlay.querySelectorAll("[data-preset]")];
+      const bad = inputs.find((input) => read(input) === null);
+      if (bad) return bad.select();
+      done({ value: n, presets: inputs.map(read).sort((a, b) => a - b) });
     });
     overlay.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Escape") done(null);
     });
-    overlay.querySelector(".stepper").addEventListener("click", (e) => {
+    overlay.querySelector("form").addEventListener("click", (e) => {
       const btn = e.target.closest("[data-step]");
       if (!btn) return;
-      const n = Math.round(Number(field.value) || 0) + Number(btn.dataset.step);
-      field.value = Math.max(min, Math.min(max, n));
-      field.focus();
+      const input = btn.closest(".number-field").querySelector("input");
+      const n = Math.round(Number(input.value) || 0) + Number(btn.dataset.step);
+      input.value = Math.max(min, Math.min(max, n));
+      input.focus();
     });
     overlay.addEventListener("mousedown", (e) => e.target === overlay && done(null));
     field.focus();

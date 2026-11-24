@@ -29,7 +29,6 @@ export const OPTIONS = {
   instrument: ["piano", "soft"],
   volume: Array.from({ length: 21 }, (_, i) => i / 20), // 0, 5%, ..., 100%
   errorSound: [false, true],
-  earReference: [false, true],
   // notation
   clef: ["treble", "bass", "grand"],
   // more key specs are valid (see music.js isKeySpec): minor keys, random up to N sharps/flats
@@ -41,7 +40,7 @@ export const OPTIONS = {
   maxChordNotes: [2, 3, 4, 5],
   chordPower: [3, 2, 1, 0.5, 0.33],
   memoryBatch: [2, 4, 8], // or any custom 1..32 (validated separately)
-  earBatch: [1, 2, 3],
+  earBatch: [2, 3, 4], // or any custom 2..8
   noteNames: [false, true],
   // appearance
   noteSize: ["small", "medium", "large", "xl"],
@@ -83,7 +82,6 @@ export const DEFAULTS = {
   instrument: "piano",
   volume: 0.5,
   errorSound: false,
-  earReference: true,
   clef: "treble",
   keySignature: 0,
   accidentals: "diatonic",
@@ -93,7 +91,9 @@ export const DEFAULTS = {
   maxChordNotes: 3,
   chordPower: 1,
   memoryBatch: 4,
-  earBatch: 1,
+  earBatch: 2,
+  memoryPresets: [2, 4, 8], // quick picks in the test bar (editable in the custom prompt)
+  earPresets: [2, 3, 4],
   noteNames: false,
   noteSize: "medium",
   staffLines: 2,
@@ -110,10 +110,13 @@ export const DEFAULTS = {
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
+const presetList = (v, min, max) => Array.isArray(v) && v.length === 3 && v.every((n) => Number.isInteger(n) && n >= min && n <= max);
 const VALIDATORS = {
   theme: (v) => v === "custom" || Object.hasOwn(THEMES, v),
   memoryBatch: (v) => Number.isInteger(v) && v >= 1 && v <= 32,
-  earBatch: (v) => Number.isInteger(v) && v >= 1 && v <= 8, // 1/2/3 in the bar, or custom
+  earBatch: (v) => Number.isInteger(v) && v >= 2 && v <= 8, // a group: at least 2 notes
+  memoryPresets: (v) => presetList(v, 1, 32),
+  earPresets: (v) => presetList(v, 2, 8),
   keySignature: isKeySpec,
   notesCount: (v) => Number.isInteger(v) && v >= 1 && v <= 999, // presets in OPTIONS, or custom
   paceCaretNpm: (v) => Number.isInteger(v) && v >= 1 && v <= 400,

@@ -50,7 +50,6 @@ export const DEFS = {
   instrument: { title: "instrument", icon: "piano", text: "Tone used for your notes and for ear mode." },
   volume: { title: "volume", icon: "volume", text: "Volume of all sounds, including notes played on the MIDI keyboard.", format: (v) => `${Math.round(v * 100)}%` },
   errorSound: { title: "error sound", icon: "warning", text: "A short thud when you play a wrong note. With sound output on the MIDI keyboard, it plays a drum on the keyboard.", labels: onOff },
-  earReference: { title: "ear mode reference", icon: "ear", text: "Show the first note of the test in ear mode, so you have a known pitch to hear the rest against. With 2 or more notes in a row, the first note of every group is shown anyway.", labels: onOff },
 
   // notation
   clef: { title: "clef", icon: "clef", text: "Staff to read from. Grand staff shows treble and bass together, like piano music.", labels: { grand: "grand staff" } },
@@ -71,7 +70,7 @@ export const DEFS = {
     labels: { 3: "mostly single", 2: "sparse", 1: "even", 0.5: "dense", 0.33: "mostly full" },
     wide: true,
   },
-  earBatch: { title: "ear batch", icon: "ear", text: "How many notes ear mode plays in a row before you play them back." },
+  earBatch: { title: "ear batch", icon: "ear", text: "How many notes ear mode plays in a row before you play them back. The first of each group is shown." },
   memoryBatch: { title: "memory batch", icon: "eyeOff", text: "How many notes to memorize at a time in memory mode." },
   maxChordNotes: { title: "max chord notes", icon: "chords", text: "Most notes in a chord. Triads have up to 3 notes and sevenths 4; a smaller limit plays part of the chord." },
   noteNames: { title: "note names", icon: "font", text: "Write each note's name next to it. A helper while you learn to read; turn it off as you improve.", labels: onOff },
@@ -79,7 +78,7 @@ export const DEFS = {
   // appearance
   noteSize: { title: "note size", icon: "size", text: "Size of the staff and notes." },
   staffLines: { title: "staff lines", icon: "lines", text: "How many lines of notes to show at once, so you can read ahead." },
-  barLines: { title: "divider lines", icon: "lines", text: "A thin line between every 4 notes, to help you keep your place.", labels: { 0: "off", 4: "every 4 notes" } },
+  barLines: { title: "divider lines", icon: "lines", text: "A thin line between every 4 notes (between groups in memory and ear mode), to help you keep your place.", labels: { 0: "off", 4: "every 4 notes" } },
   caretStyle: { title: "caret style", icon: "caret", text: "Shape of the marker on the note to play next.", labels: { line: "|", block: "▮", outline: "▯", underline: "_" } },
   paceCaret: {
     title: "pace caret",
