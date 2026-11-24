@@ -143,8 +143,8 @@ export function askNumber({ title, value, min, max, presets = null }) {
     overlay.className = "palette-backdrop";
     const presetRow = presets
       ? `<div class="palette-presets"><span class="palette-presets-label">quick picks</span>${presets
-          .map((p, i) => `<span class="number-field"><input type="number" min="${min}" max="${max}" step="1" value="${p}" data-preset="${i}" aria-label="quick pick ${i + 1}" />${stepper()}</span>`)
-          .join("")}</div>`
+          .map((p, i) => `<input type="number" min="${min}" max="${max}" step="1" value="${p}" data-preset="${i}" aria-label="quick pick ${i + 1}" />`)
+          .join('<span class="palette-presets-comma">,</span>')}</div>`
       : "";
     overlay.innerHTML = `
       <form class="palette palette-number" role="dialog" aria-label="${title}">
@@ -177,6 +177,11 @@ export function askNumber({ title, value, min, max, presets = null }) {
     overlay.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Escape") done(null);
+      // Enter applies from any field (with several fields the browser won't submit the form by itself).
+      else if (e.key === "Enter") {
+        e.preventDefault();
+        overlay.querySelector("form").requestSubmit();
+      }
     });
     overlay.querySelector("form").addEventListener("click", (e) => {
       const btn = e.target.closest("[data-step]");
