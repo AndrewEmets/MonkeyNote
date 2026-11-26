@@ -582,16 +582,36 @@ function earTempoSummary() {
 
 /** One logged wait as a line of plain text. */
 function earTempoLine(i) {
-  const { wait, auto, gap } = earTempoLog[i];
-  return `ear tempo #${i + 1}: waited ${secs(wait)} | auto ${secs(auto)} | note gap ${gap ? secs(gap) : "-"}${gap ? ` | wait/gap ${(wait / gap).toFixed(2)}` : ""}`;
+  const { wait, auto, gap, batch, group } = earTempoLog[i];
+  return `ear tempo #${i + 1}: batch ${batch} | waited ${secs(wait)} | auto ${secs(auto)} | note gap ${gap ? secs(gap) : "-"}${
+    gap ? ` | wait/gap ${(wait / gap).toFixed(2)}` : ""
+  } | group took ${group ? secs(group) : "-"}`;
 }
 
 /** The whole log as plain text (one line per wait, then the summary), for the copy button. */
-const earTempoText = () => [...earTempoLog.map((_, i) => earTempoLine(i)), earTempoSummary()].join("\n");
+const earTempoText = () => {
+  const batches = [...new Set(earTempoLog.map((e) => e.batch))].sort((a, b) => a - b);
+  const perBatch = batches.map((b) => {
+    const waits = earTempoLog.filter((e) => e.batch === b);
+    const withGap = waits.filter((e) => e.gap);
+    return `batch ${b}: ${waits.length} waits | you ${secs(median(waits.map((e) => e.wait)))} | auto ${secs(median(waits.map((e) => e.auto)))}${
+      withGap.length ? ` | wait/gap ${median(withGap.map((e) => e.wait / e.gap)).toFixed(2)}` : ""
+    }`;
+  });
+  return [...earTempoLog.map((_, i) => earTempoLine(i)), ...perBatch, earTempoSummary()].join("\n");
+};
 
 /** A group was finished: wait for the player to ask for the next one (tempo test). */
 function holdEarForTest() {
-  earTempoPending = { index: test.engine.index, done: performance.now(), auto: earTempoDelay(), gap: earTypicalGap() };
+  const done = performance.now();
+  earTempoPending = {
+    index: test.engine.index,
+    done,
+    auto: earTempoDelay(),
+    gap: earTypicalGap(),
+    batch: test.cfg.earBatch,
+    group: test.groupStart ? done - test.groupStart : 0, // first to last note of the group just played
+  };
 }
 
 /** The player asked for the next group: log how long they waited. */
@@ -599,7 +619,7 @@ function logEarWait() {
   const p = earTempoPending;
   earTempoPending = null;
   if (!p || p.index !== test.engine.index) return;
-  const entry = { wait: Math.round(performance.now() - p.done), auto: Math.round(p.auto), gap: Math.round(p.gap) };
+  const entry = { wait: Math.round(performance.now() - p.done), auto: Math.round(p.auto), gap: Math.round(p.gap), batch: p.batch, group: Math.round(p.group) };
   earTempoLog.push(entry);
   console.log(earTempoLine(earTempoLog.length - 1)); // plain text, to copy from the console
   renderHint();
@@ -1013,6 +1033,7 @@ function onInput(ev) {
       // tempo: time since the previous note found in the same group
       const now = performance.now();
       if (before % test.cfg.earBatch !== 0 && test.lastFound) test.earGaps.push(now - test.lastFound);
+      else test.groupStart = now; // (first note of a group: for the tempo test's log)
       test.lastFound = now;
     }
     view?.update(before);
