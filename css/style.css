@@ -187,6 +187,27 @@ a {
   max-width: 100%;
 }
 
+/* phones: short labels in the test bar, except for the selected one */
+.label-short {
+  display: none;
+}
+
+@media (max-width: 700px), (max-height: 500px) {
+  .config-bar .text-button:not(.active) .label-full {
+    display: none;
+  }
+
+  .config-bar .text-button:not(.active) .label-short {
+    display: inline;
+  }
+
+  /* only the selected presentation and mode keep their icon; the group size is labeled by its presentation */
+  .config-bar .text-button:not(.active) > .icon:first-child:not(:only-child),
+  .config-bar .group > .group-icon {
+    display: none;
+  }
+}
+
 /* two sections: presentation (+ batch) and mode (+ length); they wrap as whole rows */
 .config-section {
   display: flex;
@@ -1180,6 +1201,13 @@ body.focus-mode .restart-button {
 .dropdown-item:hover .sub-hint,
 .dropdown-item:hover .sub-arrow {
   color: inherit;
+}
+
+.dropdown-divider {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--sub-alt-color);
+  flex: none;
 }
 
 .dropdown-item {
@@ -2214,7 +2242,7 @@ svg.staff .caret.shake > * {
   #app {
     min-height: 100dvh;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .logo .name {
@@ -2277,14 +2305,33 @@ svg.staff .caret.shake > * {
     column-gap: 0.75rem;
   }
 
+  /* (the selected ones too, when the bar still doesn't fit: test.js) */
+  .config-bar.tight .text-button.active .label-full {
+    display: none;
+  }
+
+  .config-bar.tight .text-button.active .label-short {
+    display: inline;
+  }
+
+  .config-bar.tight .text-button.active > .icon:first-child:not(:only-child) {
+    display: none;
+  }
+
+  /* always one row beside the header */
+  .config-bar,
+  .config-section {
+    flex-wrap: nowrap;
+  }
+
   .config-bar {
     padding: 0 0.4rem;
-    font-size: 0.7rem;
+    font-size: 0.66rem;
   }
 
   .config-bar .text-button {
     gap: 0.25rem;
-    padding: 0.45rem 0.25rem;
+    padding: 0.45rem 0.18rem;
   }
 
   .config-bar .group-icon {
@@ -2294,7 +2341,7 @@ svg.staff .caret.shake > * {
   .config-bar .divider {
     display: block;
     height: 1.2rem;
-    margin: 0 0.25rem;
+    margin: 0 0.2rem;
   }
 
   .test-page {

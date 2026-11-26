@@ -1,7 +1,8 @@
 // Dropdown menu anchored under an element (e.g. the clef / key words above the staff).
-// items: [{ label, active, run, tip, sub }], or a function returning them (rebuilt after each pick, so
-// the checkmarks follow). An item with `sub` opens a side panel on hover or click; sub is a list of
-// columns: [{ title, items: [{ label, active, run }] }].
+// items: [{ label, active, run, tip, sub }] ({ divider: true } draws a line), or a function returning
+// them (rebuilt after each pick, so the checkmarks follow). An item with `sub` opens a side panel on hover
+// or click; sub is a list of columns: [{ title, items: [{ label, active, run }] }].
+// Instead of items, { columns } shows such columns in the dropdown itself.
 // A pick keeps the menu open (to change several things); it closes on outside click, Esc, scroll or resize.
 import { icon } from "./icons.js";
 import { hideTooltip, tipAttr } from "./tooltip.js";
@@ -11,9 +12,21 @@ let open = null; // { anchor, close }
 export const isMenuOpen = () => !!open;
 
 const itemHtml = (item, attrs) =>
-  `<button class="dropdown-item${item.active ? " active" : ""}${item.sub ? " has-sub" : ""}" role="menuitem" ${attrs}${tipAttr(item.tip, "right")}>${
+  item.divider
+    ? `<div class="dropdown-divider" role="separator"></div>`
+    : `<button class="dropdown-item${item.active ? " active" : ""}${item.sub ? " has-sub" : ""}" role="menuitem" ${attrs}${tipAttr(item.tip, "right")}>${
     item.active ? icon("check") : `<span class="icon"></span>`
   }<span>${item.label}</span>${item.sub ? `<span class="sub-arrow">${icon("chevronRight")}</span>` : ""}</button>`;
+
+const columnsHtml = (columns) =>
+  columns
+    .map(
+      (col, c) =>
+        `<div class="dropdown-col">${col.title ? `<div class="dropdown-col-title">${col.title}</div>` : ""}${col.items
+          .map((item, j) => itemHtml(item, `data-c="${c}" data-j="${j}"`))
+          .join("")}</div>`,
+    )
+    .join("");
 
 export function openMenu(anchor, source) {
   const wasForThis = open?.anchor === anchor;
@@ -26,7 +39,10 @@ export function openMenu(anchor, source) {
   const el = document.createElement("div");
   el.className = "dropdown";
   el.setAttribute("role", "menu");
-  const renderItems = () => (el.innerHTML = items.map((item, i) => itemHtml(item, `data-i="${i}"`)).join(""));
+  const renderItems = () => {
+    el.classList.toggle("dropdown-panel", !!items.columns);
+    el.innerHTML = items.columns ? columnsHtml(items.columns) : items.map((item, i) => itemHtml(item, `data-i="${i}"`)).join("");
+  };
   renderItems();
   document.body.appendChild(el);
 
@@ -68,16 +84,7 @@ export function openMenu(anchor, source) {
       pick(items[panelFor].sub[Number(btn.dataset.c)].items[Number(btn.dataset.j)]);
     });
   };
-  const renderPanel = () => {
-    panel.innerHTML = items[panelFor].sub
-      .map(
-        (col, c) =>
-          `<div class="dropdown-col">${col.title ? `<div class="dropdown-col-title">${col.title}</div>` : ""}${col.items
-            .map((item, j) => itemHtml(item, `data-c="${c}" data-j="${j}"`))
-            .join("")}</div>`,
-      )
-      .join("");
-  };
+  const renderPanel = () => (panel.innerHTML = columnsHtml(items[panelFor].sub));
   // Run a pick, then redraw both lists in place so the checkmarks show the new state.
   const pick = (item) => {
     item.run();
@@ -98,6 +105,8 @@ export function openMenu(anchor, source) {
     else closePanel();
   });
   el.addEventListener("click", (e) => {
+    const cell = e.target.closest("[data-c]");
+    if (cell && items.columns) return pick(items.columns[Number(cell.dataset.c)].items[Number(cell.dataset.j)]);
     const btn = e.target.closest("[data-i]");
     if (!btn) return;
     const i = Number(btn.dataset.i);

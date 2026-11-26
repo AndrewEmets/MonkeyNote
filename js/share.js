@@ -2,14 +2,10 @@
 // link applies them (then removes them from the address bar).
 import { DEFAULTS, settings } from "./settings.js";
 
-/** Groups offered in the share dialog (every setting is in exactly one). */
+/** Groups offered in the share dialog: the settings that make a test easier or harder (not input, sound or looks). */
 export const SHARE_GROUPS = [
   { id: "test", title: "test", text: "mode, length, memory / ear and their group sizes", keys: ["mode", "notesCount", "timeLimit", "attackSpeed", "memory", "ear", "memoryBatch", "earBatch", "memoryPresets", "earPresets"] },
   { id: "notation", title: "notation", text: "clef, key, accidentals, leaps, ledger lines, chords", keys: ["clef", "keySignature", "accidentals", "ledgerLines", "maxLeap", "chords", "chordStyle", "maxChordNotes", "chordPower"] },
-  { id: "input", title: "input", text: "chord window, octaves, keyboard range fit, key lights, on-screen keyboard", keys: ["chordWindow", "ignoreOctave", "fitRange", "keyLights", "keyLightChannel", "onScreenKeyboard", "keyLabels"] },
-  { id: "sound", title: "sound", text: "instrument, volume, output, error sound", keys: ["playOnPress", "soundOutput", "instrument", "volume", "errorSound"] },
-  { id: "appearance", title: "appearance", text: "note size and names, lines, caret, colors, font", keys: ["noteNames", "noteSize", "staffLines", "barLines", "caretStyle", "paceCaret", "paceCaretNpm", "smoothCaret", "flipColors", "fontFamily"] },
-  { id: "theme", title: "theme", text: "theme, custom colors, random theme", keys: ["theme", "customTheme", "randomTheme"] },
 ];
 
 const PARAM = "s";

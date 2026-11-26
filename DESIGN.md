@@ -26,8 +26,10 @@ so a 1920x1080 or 1440p screen gets a wider column and bigger notes rather than 
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;
   ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
   collapse by width when they appear or go, so the others slide instead of jumping.
-- **Above the staff**: level, clef, key, accidentals, single notes / chords, max leap and ledger lines are dropdowns; key and chords open side
-  panels (random / major / minor / harmonic minor; density / style / max notes). A pick keeps the dropdown
+- **Above the staff**: level, clef, key (+ ", chromatic"), single / chords, and "leaps ≤ octave, 2 ledger
+  lines" are dropdowns. Key opens side panels (random / major / minor / harmonic minor), then diatonic /
+  chromatic below a line; chords opens density / style / max notes; leaps and ledger lines are two columns
+  in one dropdown. A pick keeps the dropdown
   open (checkmarks update) so several things can be changed; an outside click or Esc closes it.
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
   note finishes its animation; the caret moves to the next line while the rows slide up and the finished
@@ -44,15 +46,17 @@ so a 1920x1080 or 1440p screen gets a wider column and bigger notes rather than 
   mark the groups instead of every 4 notes. The quick picks in the test bar (2/4/8 and 2/3/4 by default)
   can be changed in the custom prompt; a custom value shows as the wrench and the number.
 - **Short screens** (a phone held sideways, height ≤ 500px): the name shortens to "ms", the test bar moves up
-  beside it, tighter spacing, no keyboard hints, shorter on-screen keys and one staff line, so the test fits
-  without scrolling (on-screen keyboard included from ~840px wide).
+  beside it on one row, tighter spacing, no keyboard hints, shorter on-screen keys and one staff line, so the
+  test fits without scrolling (on-screen keyboard included from ~840px wide). On phones the test bar
+  shortens the unselected labels (def, mem, att) and drops their icons; the selected ones keep their full
+  name, unless the bar still doesn't fit on one row (then they shorten too).
 - **Header**: logo, test / stats / settings, and a user-settings button (placeholder for now).
 - **Per-presentation settings**: default, memory and ear each keep their own mode, length and notation
   (clef, key, accidentals, leaps, ledger lines, chords). Switching presentation brings back the ones last
   used there; the first switch copies the current ones. Picking a ranked level switches to default first.
   Reset settings starts all three over.
 - **Share settings** (icon at the end of the line above the staff, or the command line): a dialog with
-  groups to include (test, notation, input, sound, appearance, theme; all on), a link and a copy button.
+  groups to include (test and notation: what sets the difficulty; both on), a link and a copy button.
   The link is `?s=` + base64url JSON of the chosen groups and their non-default values; opening it applies
   them (presentation first), shows a note and removes the parameter from the address bar.
 - **Footer**: shortcut hints, theme name (click to open theme picker).

@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULTS, settings } from "../js/settings.js";
-import { initProfiles } from "../js/profiles.js";
+import { initProfiles, PROFILE_KEYS } from "../js/profiles.js";
 import { applyLevel } from "../js/levels.js";
 import { decodeSettings, encodeSettings, SHARE_GROUPS, applySettings } from "../js/share.js";
 
@@ -52,10 +52,12 @@ test("reset starts every presentation over", () => {
   presentation("default");
 });
 
-test("share groups cover every setting exactly once", () => {
+test("share groups: the test and notation settings, each once", () => {
   const keys = SHARE_GROUPS.flatMap((g) => g.keys);
+  assert.deepEqual(SHARE_GROUPS.map((g) => g.id), ["test", "notation"]);
   assert.equal(new Set(keys).size, keys.length);
-  assert.deepEqual([...keys].sort(), Object.keys(DEFAULTS).sort());
+  for (const k of keys) assert.ok(k in DEFAULTS, k);
+  for (const k of PROFILE_KEYS) assert.ok(keys.includes(k), k);
 });
 
 test("shared settings round-trip, presentation first", () => {

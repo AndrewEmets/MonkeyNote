@@ -44,6 +44,10 @@ const PRESENTATIONS = [
   ["memory", "eyeOff"],
   ["ear", "ear"],
 ];
+// Short labels for the test bar on phones (the selected one keeps its full name; style.css).
+const SHORT_LABEL = { default: "def", memory: "mem", attack: "att" };
+const barLabel = (label) =>
+  SHORT_LABEL[label] ? `<span class="label-full">${label}</span><span class="label-short">${SHORT_LABEL[label]}</span>` : `<span>${label}</span>`;
 const presentationOf = (s) => (s.ear ? "ear" : s.memory ? "memory" : "default");
 function setPresentation(p) {
   // Turn the new one on first, so there's no stop at "default" on the way (each switch loads settings, see profiles.js).
@@ -142,6 +146,8 @@ export function mount(container) {
   });
   resizeObserver.observe(els.staff);
   resizeObserver.observe(els.config);
+  resizeObserver.observe(els.configPresentation); // (their widths change as groups grow in or collapse)
+  resizeObserver.observe(els.configMode);
 
   keyboardInput.setOctave(DEFAULT_OCTAVE[settings.get("clef")]);
   keyboardInput.attach();
@@ -274,7 +280,7 @@ function stopAutoplay() {
 function renderConfig() {
   const s = settings.all();
   const button = (key, value, label, iconName, active) =>
-    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'>${iconName ? icon(iconName) : ""}<span>${label}</span></button>`;
+    `<button class="text-button${active ? " active" : ""}" data-key="${key}" data-value='${JSON.stringify(value)}'>${iconName ? icon(iconName) : ""}${barLabel(label)}</button>`;
   // Custom value button: the wrench, plus the value when it's the one in use.
   const custom = (action, isCustom, value, tip) =>
     `<button class="text-button custom-pick${isCustom ? " active" : ""}" data-action="${action}"${tipAttr(tip)}>${icon("wrench")}${isCustom ? `<span>: ${value}</span>` : ""}</button>`;
@@ -282,7 +288,7 @@ function renderConfig() {
   const groups = [
     {
       id: "presentation",
-      html: PRESENTATIONS.map(([p, ic]) => `<button class="text-button${current === p ? " active" : ""}" data-action="presentation" data-value="${p}">${icon(ic)}<span>${p}</span></button>`).join(""),
+      html: PRESENTATIONS.map(([p, ic]) => `<button class="text-button${current === p ? " active" : ""}" data-action="presentation" data-value="${p}">${icon(ic)}${barLabel(p)}</button>`).join(""),
     },
   ];
   // How many notes at a time: memorized (memory) or heard in a row (ear).
@@ -324,10 +330,15 @@ function renderConfig() {
   markConfigWrap();
 }
 
-/** When the two sections sit on separate rows, drop the divider between them. */
+/**
+ * When the two sections sit on separate rows, drop the divider between them. On a phone held sideways
+ * the bar stays on one row: if it still doesn't fit, the selected labels get short too ("tight").
+ */
 function markConfigWrap() {
-  const { configPresentation: a, configMode: b } = els;
-  els.config.classList.toggle("wrapped", b.offsetTop > a.offsetTop + a.offsetHeight / 2);
+  const { config, configPresentation: a, configMode: b } = els;
+  config.classList.toggle("wrapped", b.offsetTop > a.offsetTop + a.offsetHeight / 2);
+  config.classList.remove("tight");
+  if (SHORT_SCREEN.matches && config.scrollWidth > config.clientWidth + 1) config.classList.add("tight");
 }
 
 const GROUP_MS = 260;
@@ -763,12 +774,13 @@ function restart() {
 }
 
 const ledgerLabel = (n) => (n === 0 ? "no ledger lines" : `${n} ledger line${n > 1 ? "s" : ""}`);
+const rangeLabel = (cfg) => `${cfg.maxLeap === "any" ? "any leaps" : `leaps ≤ ${valueLabel("maxLeap", cfg.maxLeap)}`}, ${ledgerLabel(cfg.ledgerLines)}`;
 
 /** Line above the staff: level, clef, key, chords, leaps and ledger lines, each a dropdown that changes the settings. */
 function renderMeta() {
   const { cfg, fifths, minor, harmonic } = test;
   const clef = cfg.clef === "grand" ? "grand staff" : cfg.clef;
-  const key = `${keyName(fifths, minor, harmonic)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}`;
+  const key = `${keyName(fifths, minor, harmonic)}${String(cfg.keySignature).startsWith("random") ? " (random)" : ""}${cfg.accidentals === "chromatic" ? ", chromatic" : ""}`;
   const rank = rankStatus(cfg, { hints: hintsUsed() });
   const levelLabel = rank.level ? rank.level.id : "custom";
   const picks = [
@@ -780,10 +792,8 @@ function renderMeta() {
     },
     { pick: "clef", html: clef },
     { pick: "keySignature", html: key },
-    { pick: "accidentals", html: cfg.accidentals },
-    { pick: "chords", html: cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes" },
-    { pick: "maxLeap", html: `max leap: ${valueLabel("maxLeap", cfg.maxLeap)}` },
-    { pick: "ledgerLines", html: ledgerLabel(cfg.ledgerLines) },
+    { pick: "chords", html: cfg.chords ? "chords" : "single" },
+    { pick: "range", tip: "largest leap between notes; ledger lines above and below the staff", html: rangeLabel(cfg) },
   ];
   // Update the buttons in place when they're already there, so an open dropdown keeps its anchor.
   const existing = [...els.meta.querySelectorAll("[data-pick]")];
@@ -815,7 +825,20 @@ function onMetaClick(e) {
       ];
     });
   }
-  if (key === "keySignature") return openMenu(btn, () => keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
+  if (key === "keySignature") {
+    // the key, then diatonic / chromatic
+    return openMenu(btn, () => [
+      ...keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)),
+      { divider: true },
+      ...OPTIONS.accidentals.map((v) => ({ label: v, tip: v === "diatonic" ? "only notes in the key" : "also sharps, flats and naturals outside the key", active: settings.get("accidentals") === v, run: () => settings.set("accidentals", v) })),
+    ]);
+  }
+  if (key === "range") {
+    const column = (title, k, label) => ({ title, items: OPTIONS[k].map((v) => ({ label: label(v), active: settings.get(k) === v, run: () => settings.set(k, v) })) });
+    return openMenu(btn, () => ({
+      columns: [column("max leap", "maxLeap", (v) => valueLabel("maxLeap", v)), column("ledger lines", "ledgerLines", (v) => (v === 0 ? "none" : String(v)))],
+    }));
+  }
   if (key === "chords") {
     // single notes, or chords ▸ with columns for density, style and size (any pick turns chords on)
     const pick = (k, v) => () => {
@@ -831,8 +854,7 @@ function onMetaClick(e) {
       ];
     });
   }
-  const label = (v) => (key === "ledgerLines" ? ledgerLabel(v) : valueLabel(key, v));
-  openMenu(btn, () => OPTIONS[key].map((v) => ({ label: label(v), active: settings.get(key) === v, run: () => settings.set(key, v) })));
+  openMenu(btn, () => OPTIONS[key].map((v) => ({ label: valueLabel(key, v), active: settings.get(key) === v, run: () => settings.set(key, v) })));
 }
 
 const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
