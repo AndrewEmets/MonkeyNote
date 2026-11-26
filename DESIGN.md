@@ -26,8 +26,8 @@ so a 1920x1080 or 1440p screen gets a wider column and bigger notes rather than 
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;
   ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
   collapse by width when they appear or go, so the others slide instead of jumping.
-- **Above the staff**: level, clef, key (+ ", chromatic"), single / chords, and "range: octave, 2 ledger"
-  (max leap and ledger lines) are dropdowns. Key opens side panels (random / major / minor / harmonic minor), then diatonic /
+- **Above the staff**: level, clef, key (+ ", chromatic"), single / chords, and "range"
+  (max leap and ledger lines; the values in its tooltip) are dropdowns. Key opens side panels (random / major / minor / harmonic minor), then diatonic /
   chromatic below a line; chords opens density / style / max notes; leaps and ledger lines are two columns
   in one dropdown. A pick keeps the dropdown
   open (checkmarks update) so several things can be changed; an outside click or Esc closes it.
@@ -48,7 +48,8 @@ so a 1920x1080 or 1440p screen gets a wider column and bigger notes rather than 
 - **Short screens** (a phone held sideways, height ≤ 500px): the name shortens to "ms", the test bar moves up
   beside it on one row, tighter spacing, no keyboard hints, shorter on-screen keys and one staff line, so the
   test fits without scrolling (on-screen keyboard included from ~840px wide). On phones the test bar
-  shortens the unselected labels (def, mem, att) and drops their icons; the selected ones keep their full
+  shortens the unselected labels to four letters (dflt, memo, note, attk) and drops their icons; group
+  sizes and lengths fold to the selected value (dashed underline), and clicking it slides the rest in; the selected ones keep their full
   name, unless the bar still doesn't fit on one row (then they shorten too).
 - **Header**: logo, test / stats / settings, and a user-settings button (placeholder for now).
 - **Per-presentation settings**: default, memory and ear each keep their own mode, length and notation

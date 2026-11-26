@@ -45,7 +45,7 @@ const PRESENTATIONS = [
   ["ear", "ear"],
 ];
 // Short labels for the test bar on phones (the selected one keeps its full name; style.css).
-const SHORT_LABEL = { default: "def", memory: "mem", time: "tim", attack: "att" };
+const SHORT_LABEL = { default: "dflt", memory: "memo", notes: "note", attack: "attk" };
 const barLabel = (label) =>
   SHORT_LABEL[label] ? `<span class="label-full">${label}</span><span class="label-short">${SHORT_LABEL[label]}</span>` : `<span>${label}</span>`;
 const presentationOf = (s) => (s.ear ? "ear" : s.memory ? "memory" : "default");
@@ -130,6 +130,8 @@ export function mount(container) {
   };
 
   els.config.addEventListener("click", onConfigClick);
+  const onOutside = (e) => !els.config.contains(e.target) && foldNumberPicks();
+  document.addEventListener("pointerdown", onOutside);
   els.meta.addEventListener("click", onMetaClick);
   root.querySelector(".restart-button").addEventListener("click", (e) => {
     e.currentTarget.blur();
@@ -154,6 +156,7 @@ export function mount(container) {
   const onScreenHeight = () => draw();
   SHORT_SCREEN.addEventListener("change", onScreenHeight);
   cleanups = [
+    () => document.removeEventListener("pointerdown", onOutside),
     () => SHORT_SCREEN.removeEventListener("change", onScreenHeight),
     () => keyboardInput.detach(),
     input.subscribe(onInput),
@@ -230,7 +233,8 @@ function onKeyDown(e) {
     finish(performance.now());
   } else if (debug.on && !e.ctrlKey && !e.altKey && !e.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
     // Debug cheat keys (none of these are note keys on the computer keyboard).
-    const action = { Enter: () => cheat(true), Backspace: () => cheat(false), Backslash: toggleAutoplay }[e.code === "Backslash" ? "Backslash" : e.key];
+    const byCode = { Backslash: toggleAutoplay, Quote: toggleEarTempoTest }[e.code];
+    const action = byCode ?? { Enter: () => cheat(true), Backspace: () => cheat(false) }[e.key];
     if (action && !e.repeat) {
       e.preventDefault();
       action();
@@ -277,6 +281,17 @@ function stopAutoplay() {
 
 
 
+/**
+ * Number choices (group size, length). On phones only the selected one shows; clicking it slides the
+ * others in, and a pick (or a click elsewhere) folds them away again (style.css: .number-pick).
+ */
+const numberPick = (buttons) => `<span class="number-pick">${buttons}</span>`;
+const COMPACT_BAR = window.matchMedia("(max-width: 700px), (max-height: 500px)"); // as in style.css
+
+function foldNumberPicks(except = null) {
+  els.config.querySelectorAll(".number-pick.open").forEach((p) => p !== except && p.classList.remove("open"));
+}
+
 function renderConfig() {
   const s = settings.all();
   const button = (key, value, label, iconName, active) =>
@@ -295,21 +310,17 @@ function renderConfig() {
   if (s.memory) {
     groups.push({
       id: "batch-memory",
-      html: `<span class="group-icon">${icon("eyeOff")}</span>${s.memoryPresets.map((v) => button("memoryBatch", v, v, null, s.memoryBatch === v)).join("")}${custom(
-        "memory-custom",
-        !s.memoryPresets.includes(s.memoryBatch),
-        s.memoryBatch,
-        "custom batch size and quick picks",
+      html: `<span class="group-icon">${icon("eyeOff")}</span>${numberPick(
+        s.memoryPresets.map((v) => button("memoryBatch", v, v, null, s.memoryBatch === v)).join("") +
+          custom("memory-custom", !s.memoryPresets.includes(s.memoryBatch), s.memoryBatch, "custom batch size and quick picks"),
       )}`,
     });
   } else if (s.ear) {
     groups.push({
       id: "batch-ear",
-      html: `<span class="group-icon">${icon("ear")}</span>${s.earPresets.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("")}${custom(
-        "ear-custom",
-        !s.earPresets.includes(s.earBatch),
-        s.earBatch,
-        "custom group size and quick picks",
+      html: `<span class="group-icon">${icon("ear")}</span>${numberPick(
+        s.earPresets.map((v) => button("earBatch", v, v, null, s.earBatch === v)).join("") +
+          custom("ear-custom", !s.earPresets.includes(s.earBatch), s.earBatch, "custom group size and quick picks"),
       )}`,
     });
   }
@@ -321,9 +332,10 @@ function renderConfig() {
   if (valueKey) {
     groups.push({
       id: `lengths-${s.mode}`,
-      html:
+      html: numberPick(
         values.map((v) => button(valueKey, v, v, null, s[valueKey] === v)).join("") +
-        (CUSTOM_LENGTH[valueKey] ? custom("length-custom", !values.includes(s[valueKey]), s[valueKey], `custom ${CUSTOM_LENGTH[valueKey].title}`) : ""),
+          (CUSTOM_LENGTH[valueKey] ? custom("length-custom", !values.includes(s[valueKey]), s[valueKey], `custom ${CUSTOM_LENGTH[valueKey].title}`) : ""),
+      ),
     });
   }
   syncGroups(els.configMode, groups);
@@ -407,6 +419,14 @@ async function onConfigClick(e) {
   const btn = e.target.closest("button");
   if (!btn) return;
   btn.blur();
+  const pick = btn.closest(".number-pick");
+  foldNumberPicks(pick);
+  if (pick && COMPACT_BAR.matches) {
+    // folded: the click unfolds it; unfolded: picking the selected one again just folds it
+    if (!pick.classList.contains("open")) return pick.classList.add("open");
+    if (btn.classList.contains("active") && !btn.dataset.action) return pick.classList.remove("open");
+    pick.classList.remove("open");
+  }
   if (btn.dataset.key) settings.set(btn.dataset.key, JSON.parse(btn.dataset.value));
   else if (btn.dataset.action === "presentation") setPresentation(btn.dataset.value);
   else if (btn.dataset.action === "ear-custom") askBatch("earBatch", "earPresets", "notes heard in a row", 2, 8);
@@ -454,8 +474,11 @@ function renderHint() {
   if (test?.cfg.mode === "zen") parts.push(`<span><kbd>shift</kbd> + <kbd>enter</kbd> to finish</span>`);
   if (debug.on)
     parts.push(
-      `<span class="debug-hint">${icon("bug")}<span>debug: <kbd>enter</kbd> right · <kbd>backspace</kbd> wrong · <kbd>\\</kbd> autoplay ${autoplayTimer ? "on" : "off"}</span></span>`,
+      `<span class="debug-hint">${icon("bug")}<span>debug: <kbd>enter</kbd> right · <kbd>backspace</kbd> wrong · <kbd>\\</kbd> autoplay ${autoplayTimer ? "on" : "off"}${
+        test?.cfg.ear ? ` · <kbd>'</kbd> ear tempo test ${earTempoTest ? "on" : "off"}` : ""
+      }</span></span>`,
     );
+  if (debug.on && earTempoTest && test?.cfg.ear) parts.push(`<span class="debug-hint">${icon("ear")}<span>${earTempoSummary()}</span></span>`);
   els.hint.innerHTML = parts.map((p) => `<span class="hint-part">${p}</span>`).join("");
   els.hint.querySelector(".replay-button")?.addEventListener("click", (e) => {
     e.currentTarget.blur();
@@ -500,10 +523,61 @@ function stopEarPlayback() {
  */
 const EAR_TEMPO_MIN_MS = 1000;
 const EAR_TEMPO_MAX_MS = 3000;
-function earTempoDelay() {
+/** The player's typical time between notes found in a row (ms), or 0 before there's any. */
+function earTypicalGap() {
   const gaps = test.earGaps.slice(-8).sort((a, b) => a - b);
-  const typical = gaps.length ? gaps[Math.floor((gaps.length - 1) / 2)] : 0; // (the lower middle one)
-  return Math.min(EAR_TEMPO_MAX_MS, Math.max(EAR_TEMPO_MIN_MS, typical));
+  return gaps.length ? gaps[Math.floor((gaps.length - 1) / 2)] : 0; // (the lower middle one)
+}
+function earTempoDelay() {
+  return Math.min(EAR_TEMPO_MAX_MS, Math.max(EAR_TEMPO_MIN_MS, earTypicalGap()));
+}
+
+/**
+ * Debug "ear tempo test": the next group doesn't play by itself; you ask for it (space / pedal / replay)
+ * when you're ready, and each wait is logged next to what the automatic pause would have been and your
+ * note gap at the time, to tune earTempoDelay. Lasts for this page view.
+ */
+let earTempoTest = false;
+const earTempoLog = []; // { wait, auto, gap } in ms
+let earTempoPending = null; // { index, done, auto, gap } while waiting for you to ask
+
+function toggleEarTempoTest() {
+  earTempoTest = !earTempoTest;
+  earTempoPending = null;
+  notify(`ear tempo test ${earTempoTest ? "on: space, pedal or replay plays the next group" : "off"}`, { duration: 2500 });
+  renderHint();
+}
+
+const median = (list) => {
+  const sorted = [...list].sort((a, b) => a - b);
+  return sorted.length ? (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2 : 0;
+};
+const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
+
+function earTempoSummary() {
+  if (!earTempoLog.length) return "ask for each next group when you're ready";
+  const last = earTempoLog.at(-1);
+  const withGap = earTempoLog.filter((e) => e.gap);
+  const ratio = withGap.length ? ` · ${median(withGap.map((e) => e.wait / e.gap)).toFixed(2)}× your note gap` : "";
+  return `last: you ${secs(last.wait)}, auto ${secs(last.auto)} · ${earTempoLog.length} waits: you ${secs(median(earTempoLog.map((e) => e.wait)))}, auto ${secs(
+    median(earTempoLog.map((e) => e.auto)),
+  )}${ratio}`;
+}
+
+/** A group was finished: wait for the player to ask for the next one (tempo test). */
+function holdEarForTest() {
+  earTempoPending = { index: test.engine.index, done: performance.now(), auto: earTempoDelay(), gap: earTypicalGap() };
+}
+
+/** The player asked for the next group: log how long they waited. */
+function logEarWait() {
+  const p = earTempoPending;
+  earTempoPending = null;
+  if (!p || p.index !== test.engine.index) return;
+  const entry = { wait: Math.round(performance.now() - p.done), auto: Math.round(p.auto), gap: Math.round(p.gap) };
+  earTempoLog.push(entry);
+  console.log("ear tempo test", entry, earTempoSummary());
+  renderHint();
 }
 
 /** Play items [a, b) one after another, each for a moment; each note pulses on the staff as it sounds. */
@@ -531,6 +605,7 @@ function playCurrent() {
   const item = engine?.items[engine.index];
   if (!item || engine.state === "done") return false;
   if (test.cfg.ear && test.cfg.earBatch > 1) {
+    if (earTempoPending) logEarWait();
     playSequence(...earBatchRange(engine.index));
     return true;
   }
@@ -796,8 +871,8 @@ function restart() {
   scheduleEarPlay(500);
 }
 
-/** "range: octave, 2 ledger": the largest leap, and how many ledger lines notes may use. */
-const rangeLabel = (cfg) => `range: ${valueLabel("maxLeap", cfg.maxLeap)}, ${cfg.ledgerLines ? cfg.ledgerLines : "no"} ledger`;
+/** Tooltip of the "range" pick (max leap and ledger lines): the current values. */
+const rangeTip = (cfg) => `range: leaps up to ${cfg.maxLeap === "any" ? "any size" : `a ${valueLabel("maxLeap", cfg.maxLeap)}`}, ${cfg.ledgerLines || "no"} ledger line${cfg.ledgerLines === 1 ? "" : "s"}`;
 
 /** Line above the staff: level, clef, key, chords, leaps and ledger lines, each a dropdown that changes the settings. */
 function renderMeta() {
@@ -816,7 +891,7 @@ function renderMeta() {
     { pick: "clef", html: clef },
     { pick: "keySignature", html: key },
     { pick: "chords", html: cfg.chords ? "chords" : "single" },
-    { pick: "range", tip: "range: the largest leap between notes, and ledger lines above / below the staff", html: rangeLabel(cfg) },
+    { pick: "range", tip: rangeTip(cfg), html: "range" },
   ];
   // Update the buttons in place when they're already there, so an open dropdown keeps its anchor.
   const existing = [...els.meta.querySelectorAll("[data-pick]")];
@@ -917,7 +992,8 @@ function onInput(ev) {
     }
     view?.update(before);
     updateLights();
-    if (test.cfg.ear) scheduleEarPlay(test.attack ? EAR_ATTACK_NEXT_MS : earTempoDelay());
+    if (test.cfg.ear && earTempoTest && debug.on && !test.attack && engine.state !== "done" && engine.index === earBatchRange(engine.index)[0]) holdEarForTest();
+    else if (test.cfg.ear) scheduleEarPlay(test.attack ? EAR_ATTACK_NEXT_MS : earTempoDelay());
   }
   renderCounter();
   // Let the last note animate first (unless a restart happens meanwhile).

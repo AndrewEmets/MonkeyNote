@@ -192,6 +192,11 @@ a {
   display: none;
 }
 
+.number-pick {
+  display: inline-flex;
+  align-items: center;
+}
+
 @media (max-width: 700px), (max-height: 500px) {
   .config-bar .text-button:not(.active) .label-full {
     display: none;
@@ -199,6 +204,26 @@ a {
 
   .config-bar .text-button:not(.active) .label-short {
     display: inline;
+  }
+
+  /* number choices fold to the selected one; clicking it slides the rest in (test.js) */
+  .number-pick .text-button {
+    max-width: 5rem;
+    overflow: hidden;
+    transition: color 0.15s, max-width 0.22s ease, padding 0.22s ease, opacity 0.22s ease, visibility 0.22s;
+  }
+
+  .number-pick:not(.open) .text-button:not(.active) {
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .number-pick:not(.open) .text-button.active span {
+    text-decoration: underline dashed 1px; /* (it opens the choices) */
+    text-underline-offset: 0.3em;
   }
 
   /* only the selected presentation and mode keep their icon; the group size is labeled by its presentation */
