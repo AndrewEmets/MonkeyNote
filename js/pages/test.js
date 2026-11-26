@@ -478,8 +478,24 @@ function renderHint() {
         test?.cfg.ear ? ` · <kbd>'</kbd> ear tempo test ${earTempoTest ? "on" : "off"}` : ""
       }</span></span>`,
     );
-  if (debug.on && earTempoTest && test?.cfg.ear) parts.push(`<span class="debug-hint">${icon("ear")}<span>${earTempoSummary()}</span></span>`);
+  if (debug.on && earTempoTest && test?.cfg.ear)
+    parts.push(
+      `<span class="debug-hint">${icon("ear")}<span>${earTempoSummary()}</span>${
+        earTempoLog.length ? `<button class="text-button ear-log-copy">${icon("copy")}<span>copy log</span></button>` : ""
+      }</span>`,
+    );
   els.hint.innerHTML = parts.map((p) => `<span class="hint-part">${p}</span>`).join("");
+  els.hint.querySelector(".ear-log-copy")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.blur();
+    try {
+      await navigator.clipboard.writeText(earTempoText());
+      notify("ear tempo log copied", { duration: 1500 });
+    } catch {
+      console.log(earTempoText());
+      notify("couldn't copy: the log is in the console", { type: "error" });
+    }
+  });
   els.hint.querySelector(".replay-button")?.addEventListener("click", (e) => {
     e.currentTarget.blur();
     playCurrent();
@@ -564,6 +580,15 @@ function earTempoSummary() {
   )}${ratio}`;
 }
 
+/** One logged wait as a line of plain text. */
+function earTempoLine(i) {
+  const { wait, auto, gap } = earTempoLog[i];
+  return `ear tempo #${i + 1}: waited ${secs(wait)} | auto ${secs(auto)} | note gap ${gap ? secs(gap) : "-"}${gap ? ` | wait/gap ${(wait / gap).toFixed(2)}` : ""}`;
+}
+
+/** The whole log as plain text (one line per wait, then the summary), for the copy button. */
+const earTempoText = () => [...earTempoLog.map((_, i) => earTempoLine(i)), earTempoSummary()].join("\n");
+
 /** A group was finished: wait for the player to ask for the next one (tempo test). */
 function holdEarForTest() {
   earTempoPending = { index: test.engine.index, done: performance.now(), auto: earTempoDelay(), gap: earTypicalGap() };
@@ -576,7 +601,7 @@ function logEarWait() {
   if (!p || p.index !== test.engine.index) return;
   const entry = { wait: Math.round(performance.now() - p.done), auto: Math.round(p.auto), gap: Math.round(p.gap) };
   earTempoLog.push(entry);
-  console.log("ear tempo test", entry, earTempoSummary());
+  console.log(earTempoLine(earTempoLog.length - 1)); // plain text, to copy from the console
   renderHint();
 }
 
@@ -872,7 +897,7 @@ function restart() {
 }
 
 /** Tooltip of the "range" pick (max leap and ledger lines): the current values. */
-const rangeTip = (cfg) => `range: leaps up to ${cfg.maxLeap === "any" ? "any size" : `a ${valueLabel("maxLeap", cfg.maxLeap)}`}, ${cfg.ledgerLines || "no"} ledger line${cfg.ledgerLines === 1 ? "" : "s"}`;
+const rangeTip = (cfg) => `range: leaps up to ${cfg.maxLeap === "any" ? "any size" : `${cfg.maxLeap === 7 ? "an" : "a"} ${valueLabel("maxLeap", cfg.maxLeap)}`}, ${cfg.ledgerLines || "no"} ledger line${cfg.ledgerLines === 1 ? "" : "s"}`;
 
 /** Line above the staff: level, clef, key, chords, leaps and ledger lines, each a dropdown that changes the settings. */
 function renderMeta() {
