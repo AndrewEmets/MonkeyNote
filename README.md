@@ -26,6 +26,7 @@ the test page: <kbd>Enter</kbd> plays the right note or chord, <kbd>Backspace</k
 
 - `js/data/themes.js`: `node tools/build-themes.js path/to/monkeytype/frontend/src/ts/constants/themes.ts`
 - `js/data/glyphs.js`: `python tools/extract-glyphs.py path/to/Bravura.otf` (needs `pip install fonttools`)
+- `icons/*.png` (app icons): `python tools/build-icons.py` (needs `pip install pillow`)
 
 ## License
 

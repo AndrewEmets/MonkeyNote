@@ -9,6 +9,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 |---|---|
 | Stack | Vanilla HTML + JS (ES modules), no build step. Small libraries only if unavoidable. |
 | Hosting | GitHub Pages, served from `main` root: https://andrewemets.github.io/MonkeyScore/ |
+| App | Installable (web app manifest, icons in `icons/` drawn by `tools/build-icons.py`) and usable offline: `sw.js` serves network-first with the cached copy as fallback (fonts cache-first); the page hands it the files it loaded before the worker took over. |
 | Storage | `localStorage` only: settings, results (last 5000), personal bests, activity counters. No backend. |
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
 | Themes | Port MonkeyType's themes. Project is GPL-3.0 as a result; credit MonkeyType in README. |
@@ -16,6 +17,10 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Sound | Built-in Web Audio synth, or the MIDI keyboard's own sound via MIDI output (setting). Synth: an additive "piano" (decaying, slightly stretched harmonics) and a soft sine voice. Notes you press are played for keyboard/screen input by default (MIDI keyboards often have speakers). Optional wrong-note thud (a GM drum on channel 10 when sound goes to the MIDI keyboard). Volume in 5% steps. Samples may come later. |
 
 ## Layout (mirrors MonkeyType)
+
+Content column 62.5rem (1000px at 16px). The root font size grows on big screens
+(`clamp(16px, min(0.95vw, 1.6vh), 28px)`: from about 1700x1000 up), and the staff's size in px follows it,
+so a 1920x1080 or 1440p screen gets a wider column and bigger notes rather than a small island.
 
 - **Top bar**: logo, nav icons (test, stats, settings).
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;

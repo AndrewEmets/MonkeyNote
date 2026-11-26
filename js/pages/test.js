@@ -22,7 +22,9 @@ import { closeMenu, openMenu } from "../menu.js";
 import { valueLabel } from "../setting-defs.js";
 import { debug } from "../debug.js";
 
-const STAFF_SPACE = { small: 10, medium: 14, large: 18, xl: 22 };
+const STAFF_SPACE = { small: 10, medium: 14, large: 18, xl: 22 }; // px at the base font size (16px)
+/** Staff space in px: grows with the page's font size, which grows on big screens (style.css). */
+const staffSpaceOf = (size) => (STAFF_SPACE[size] * parseFloat(getComputedStyle(document.documentElement).fontSize)) / 16;
 const MODE_VALUES = {
   notes: ["notesCount", [8, 16, 32, 64]],
   time: ["timeLimit", [15, 30, 60, 120]],
@@ -628,7 +630,7 @@ function onAttackMiss(now) {
 function drawAttack() {
   const s = settings.all();
   const { engine, genOpts, attack: a } = test;
-  const staffSpace = STAFF_SPACE[s.noteSize];
+  const staffSpace = staffSpaceOf(s.noteSize);
   const width = els.staff.clientWidth;
   const W = width / staffSpace;
   const layout = { ...genOpts, noteNames: s.noteNames, track: true };
@@ -1050,7 +1052,7 @@ function draw({ enter = null, fast = false } = {}) {
   }
   const s = settings.all();
   const { engine, genOpts, cfg } = test;
-  const staffSpace = STAFF_SPACE[s.noteSize];
+  const staffSpace = staffSpaceOf(s.noteSize);
   const width = els.staff.clientWidth;
   const layout = { ...genOpts, noteNames: s.noteNames };
   let capacity = lineCapacity(width / staffSpace, layout);

@@ -17,7 +17,7 @@
 
   --font: "Roboto Mono", monospace;
   --radius: 0.5rem;
-  --content-width: 1000px;
+  --content-width: 62.5rem; /* 1000px at the base font size */
 }
 
 * {
@@ -50,6 +50,9 @@
 
 html {
   scroll-behavior: smooth;
+  /* Grow with big screens (everything is in rem, and the staff follows): 16px up to about 1700x1000,
+     then by width, or by height on ultrawide ones. */
+  font-size: clamp(16px, min(0.95vw, 1.6vh), 28px);
 }
 
 body {

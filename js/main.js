@@ -13,7 +13,7 @@ import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.15.0";
+export const VERSION = "0.16.0";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
@@ -134,3 +134,20 @@ renderFooter();
 window.addEventListener("hashchange", route);
 route();
 initMidi();
+registerServiceWorker();
+
+/** Installable app + offline use (sw.js); hands the worker the files this page already loaded. */
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  const register = () =>
+    navigator.serviceWorker
+      .register("sw.js")
+      .then(() => navigator.serviceWorker.ready)
+      .then((reg) => {
+        const loaded = performance.getEntriesByType("resource").map((e) => e.name);
+        reg.active?.postMessage({ cache: [location.href.split(/[?#]/)[0], ...loaded].filter((u) => !u.startsWith("data:")) });
+      })
+      .catch(() => {}); // (no offline copy; the app works the same)
+  if (document.readyState === "complete") register();
+  else window.addEventListener("load", register, { once: true });
+}
