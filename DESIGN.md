@@ -26,8 +26,8 @@ so a 1920x1080 or 1440p screen gets a wider column and bigger notes rather than 
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;
   ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
   collapse by width when they appear or go, so the others slide instead of jumping.
-- **Above the staff**: level, clef, key (+ ", chromatic"), single / chords, and "leaps ≤ octave, 2 ledger
-  lines" are dropdowns. Key opens side panels (random / major / minor / harmonic minor), then diatonic /
+- **Above the staff**: level, clef, key (+ ", chromatic"), single / chords, and "range: octave, 2 ledger"
+  (max leap and ledger lines) are dropdowns. Key opens side panels (random / major / minor / harmonic minor), then diatonic /
   chromatic below a line; chords opens density / style / max notes; leaps and ledger lines are two columns
   in one dropdown. A pick keeps the dropdown
   open (checkmarks update) so several things can be changed; an outside click or Esc closes it.
@@ -89,6 +89,11 @@ Toggles (combine with notes / time / attack):
   A wrong note sends the caret back to the batch start and replays the batch; notes found so far stay
   shown, but the whole batch has to be played again. After 3 wrong tries on a note it is shown.
   Replayed notes keep their first result (no new speed or accuracy credit; wrong notes still count).
+  Playing while a group is being played stops the playback. The pause before the next group follows
+  your tempo: the median time between your last notes within groups, 1–3 s (at least 1.1 s after a
+  wrong note).
+- **Whole groups**: a notes test in memory or ear mode rounds its length to the nearest whole number of
+  groups (32 notes in groups of 3 → 33; 16 → 15).
   Attack mode can't go back: a wrong note there replays the current note only.
   The caret flashes red on wrong notes, so feedback shows even for hidden notes.
 

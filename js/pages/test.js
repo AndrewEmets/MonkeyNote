@@ -45,7 +45,7 @@ const PRESENTATIONS = [
   ["ear", "ear"],
 ];
 // Short labels for the test bar on phones (the selected one keeps its full name; style.css).
-const SHORT_LABEL = { default: "def", memory: "mem", attack: "att" };
+const SHORT_LABEL = { default: "def", memory: "mem", time: "tim", attack: "att" };
 const barLabel = (label) =>
   SHORT_LABEL[label] ? `<span class="label-full">${label}</span><span class="label-short">${SHORT_LABEL[label]}</span>` : `<span>${label}</span>`;
 const presentationOf = (s) => (s.ear ? "ear" : s.memory ? "memory" : "default");
@@ -468,6 +468,9 @@ function renderHint() {
 const EAR_SEQUENCE_GAP_MS = 650; // between notes heard in a row (ear batch of 2 or 3)
 let earSequence = []; // timers of a sequence being played
 
+/** A notes test in memory / ear mode is made of whole groups: the count rounds to the nearest multiple (at least one group). */
+const wholeGroups = (count, group) => (group > 1 ? Math.max(group, Math.round(count / group) * group) : count);
+
 /** Notes per group: memory batch or ear group (0 otherwise). */
 const groupSize = (cfg) => (cfg.ear ? cfg.earBatch : cfg.memory ? cfg.memoryBatch : 0);
 /** Divider lines (when on): between groups in memory and ear mode, else every 4 notes. */
@@ -481,6 +484,26 @@ function earBatchRange(index) {
   const n = test.cfg.earBatch;
   const start = Math.floor(index / n) * n;
   return [start, Math.min(start + n, test.engine.items.length)];
+}
+
+/** Stop a sequence being played (and one about to start): the player has started answering. */
+function stopEarPlayback() {
+  clearTimeout(earTimer);
+  earSequence.forEach(clearTimeout);
+  earSequence = [];
+}
+
+/**
+ * Ear mode: pause before playing the next group, from the player's own tempo (the typical time between
+ * notes they found in a row, recently: the median, so one long think doesn't count), so a slower player
+ * gets a longer breath. 1-3 s.
+ */
+const EAR_TEMPO_MIN_MS = 1000;
+const EAR_TEMPO_MAX_MS = 3000;
+function earTempoDelay() {
+  const gaps = test.earGaps.slice(-8).sort((a, b) => a - b);
+  const typical = gaps.length ? gaps[Math.floor((gaps.length - 1) / 2)] : 0; // (the lower middle one)
+  return Math.min(EAR_TEMPO_MAX_MS, Math.max(EAR_TEMPO_MIN_MS, typical));
 }
 
 /** Play items [a, b) one after another, each for a moment; each note pulses on the staff as it sounds. */
@@ -748,7 +771,7 @@ function restart() {
     midiRange: cfg.fitRange && midiRange.isKnown() ? [midiRange.get().low, midiRange.get().high] : null,
   };
   const engine = new TestEngine({
-    items: generateItems(cfg.mode === "notes" ? cfg.notesCount : 100, genOpts),
+    items: generateItems(cfg.mode === "notes" ? wholeGroups(cfg.notesCount, groupSize(cfg)) : 100, genOpts),
     mode: cfg.mode,
     chordWindow: cfg.chordWindow,
     ignoreOctave: cfg.ignoreOctave,
@@ -757,7 +780,7 @@ function restart() {
   });
   const attack =
     cfg.mode === "attack" ? { lives: ATTACK_LIVES, startNpm: cfg.attackSpeed, npm: cfg.attackSpeed, peak: cfg.attackSpeed, distance: null, last: 0, raf: 0 } : null;
-  test = { cfg, fifths, minor, harmonic, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map() };
+  test = { cfg, fifths, minor, harmonic, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map(), earGaps: [], lastFound: 0 };
   view = null;
 
   els.results.hidden = true;
@@ -773,8 +796,8 @@ function restart() {
   scheduleEarPlay(500);
 }
 
-const ledgerLabel = (n) => (n === 0 ? "no ledger lines" : `${n} ledger line${n > 1 ? "s" : ""}`);
-const rangeLabel = (cfg) => `${cfg.maxLeap === "any" ? "any leaps" : `leaps ≤ ${valueLabel("maxLeap", cfg.maxLeap)}`}, ${ledgerLabel(cfg.ledgerLines)}`;
+/** "range: octave, 2 ledger": the largest leap, and how many ledger lines notes may use. */
+const rangeLabel = (cfg) => `range: ${valueLabel("maxLeap", cfg.maxLeap)}, ${cfg.ledgerLines ? cfg.ledgerLines : "no"} ledger`;
 
 /** Line above the staff: level, clef, key, chords, leaps and ledger lines, each a dropdown that changes the settings. */
 function renderMeta() {
@@ -793,7 +816,7 @@ function renderMeta() {
     { pick: "clef", html: clef },
     { pick: "keySignature", html: key },
     { pick: "chords", html: cfg.chords ? "chords" : "single" },
-    { pick: "range", tip: "largest leap between notes; ledger lines above and below the staff", html: rangeLabel(cfg) },
+    { pick: "range", tip: "range: the largest leap between notes, and ledger lines above / below the staff", html: rangeLabel(cfg) },
   ];
   // Update the buttons in place when they're already there, so an open dropdown keeps its anchor.
   const existing = [...els.meta.querySelectorAll("[data-pick]")];
@@ -858,8 +881,8 @@ function onMetaClick(e) {
 }
 
 const EAR_REVEAL_AFTER = 3; // wrong notes before ear mode shows the note
-const EAR_NEXT_DELAY_MS = 750; // pause after a right note before the next one plays
-const EAR_WRONG_DELAY_MS = 1100; // pause after a wrong note before the note plays again
+const EAR_WRONG_DELAY_MS = 1100; // least pause after a wrong note before the group plays again
+const EAR_ATTACK_NEXT_MS = 750; // attack mode: pause after a right note before the next one plays
 
 function onInput(ev) {
   if (ev.type === "control") {
@@ -880,14 +903,21 @@ function onInput(ev) {
   const before = engine.index;
   const out = engine.noteOn(ev.midi, ev.source, ev.time, input.isHeld);
   if (!out) return;
+  if (test.cfg.ear && !test.attack) stopEarPlayback(); // playing over the playback: stop it
   if (out.started) onStart();
   piano?.flash(ev.midi, out.correct ? "correct" : "error");
   if (!out.correct) onWrong(before);
   if (out.resolved) {
-    if (test.cfg.ear && !test.attack) test.revealed.add(before); // found by ear: stays visible after a rewind
+    if (test.cfg.ear && !test.attack) {
+      test.revealed.add(before); // found by ear: stays visible after a rewind
+      // tempo: time since the previous note found in the same group
+      const now = performance.now();
+      if (before % test.cfg.earBatch !== 0 && test.lastFound) test.earGaps.push(now - test.lastFound);
+      test.lastFound = now;
+    }
     view?.update(before);
     updateLights();
-    scheduleEarPlay(EAR_NEXT_DELAY_MS);
+    if (test.cfg.ear) scheduleEarPlay(test.attack ? EAR_ATTACK_NEXT_MS : earTempoDelay());
   }
   renderCounter();
   // Let the last note animate first (unless a restart happens meanwhile).
@@ -920,7 +950,8 @@ function onWrong(index) {
     if (wrongs >= EAR_REVEAL_AFTER) view?.reveal(index);
     if (test.attack) return scheduleEarPlay(EAR_WRONG_DELAY_MS, "current");
     rewindTo(earBatchRange(index)[0]);
-    scheduleEarPlay(EAR_WRONG_DELAY_MS);
+    test.lastFound = 0;
+    scheduleEarPlay(Math.max(EAR_WRONG_DELAY_MS, earTempoDelay()));
   } else if (cfg.memory) {
     if (test.attack) return view?.reveal(index);
     rewindTo(Math.floor(index / cfg.memoryBatch) * cfg.memoryBatch);
