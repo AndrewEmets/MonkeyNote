@@ -23,8 +23,9 @@ the test page: <kbd>Enter</kbd> plays the right note or chord, <kbd>Backspace</k
 <kbd>\</kbd> toggles autoplay (right notes every 0.7 s with the odd mistake). `?debug=0` turns it off.
 
 In ear mode, <kbd>'</kbd> toggles the ear tempo test: the next group doesn't play by itself, you ask for it
-(space, pedal or the replay button) when you're ready. Each wait is shown under the staff (and logged to the console as plain text, or copied with "copy log") next to the pause
-the app would have picked and your typical time between notes, to tune that pause.
+(space, pedal or the replay button) when you're ready. Each wait is logged (under the staff, in the console
+as plain text, or with "copy log") in seconds and beats, next to the pause the app would have picked, with
+the batch size, your beat, how soon you started answering and how long the group took.
 
 ## Generated data
 

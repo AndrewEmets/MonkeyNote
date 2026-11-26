@@ -90,9 +90,14 @@ Toggles (combine with notes / time / attack):
   A wrong note sends the caret back to the batch start and replays the batch; notes found so far stay
   shown, but the whole batch has to be played again. After 3 wrong tries on a note it is shown.
   Replayed notes keep their first result (no new speed or accuracy credit; wrong notes still count).
-  Playing while a group is being played stops the playback. The pause before the next group follows
-  your tempo: the median time between your last notes within groups, 1–3 s (at least 1.1 s after a
-  wrong note).
+  Playing while a group is being played stops the playback.
+- **Ear timing (4/4 at your tempo)**: the beat is your typical time between notes found in a row (lower
+  median of the last 8, 0.35–1.5 s; 0.65 s until you've played; kept for the page view). Groups play at
+  that beat, and the next group starts on a bar line (4 beats) counted from the start of the last
+  playback, at least half a beat after your last note. Answering right after the playback brings the
+  next group on the next bar; leaving a rest moves it to the bar after. After a wrong note the group
+  replays after max(1.1 s, 2 beats). (Tuned from a tempo-test log: every wait was a whole number of
+  beats and every call-and-response cycle a whole number of bars.)
 - **Whole groups**: a notes test in memory or ear mode rounds its length to the nearest whole number of
   groups (32 notes in groups of 3 → 33; 16 → 15).
   Attack mode can't go back: a wrong note there replays the current note only.

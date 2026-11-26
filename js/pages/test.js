@@ -504,7 +504,6 @@ function renderHint() {
 
 // ---- sound: ear mode and replay ----
 
-const EAR_SEQUENCE_GAP_MS = 650; // between notes heard in a row (ear batch of 2 or 3)
 let earSequence = []; // timers of a sequence being played
 
 /** A notes test in memory / ear mode is made of whole groups: the count rounds to the nearest multiple (at least one group). */
@@ -533,28 +532,48 @@ function stopEarPlayback() {
 }
 
 /**
- * Ear mode: pause before playing the next group, from the player's own tempo (the typical time between
- * notes they found in a row, recently: the median, so one long think doesn't count), so a slower player
- * gets a longer breath. 1-3 s.
+ * Ear mode keeps time like a musician counting in 4/4. The beat is your own tempo: the typical time
+ * between notes you find in a row (recent ones, the lower median so one long think doesn't count; kept
+ * for the page view, so a new test starts at your tempo). Groups play at that beat, and the next group
+ * starts on a bar line counted from the start of the last playback, at least about a beat after your
+ * last note: answer right away and it comes on the next bar, leave a rest and it waits for the one after.
  */
-const EAR_TEMPO_MIN_MS = 1000;
-const EAR_TEMPO_MAX_MS = 3000;
+const EAR_BEAT_DEFAULT_MS = 650;
+const EAR_BEAT_MIN_MS = 350;
+const EAR_BEAT_MAX_MS = 1500;
+const EAR_BAR_BEATS = 4;
+const EAR_MIN_REST_BEATS = 0.5; // (not a whole beat: a slightly late last note shouldn't cost a bar)
+const earGaps = []; // ms between notes found in a row, this page view
+
 /** The player's typical time between notes found in a row (ms), or 0 before there's any. */
 function earTypicalGap() {
-  const gaps = test.earGaps.slice(-8).sort((a, b) => a - b);
+  const gaps = earGaps.slice(-8).sort((a, b) => a - b);
   return gaps.length ? gaps[Math.floor((gaps.length - 1) / 2)] : 0; // (the lower middle one)
 }
-function earTempoDelay() {
-  return Math.min(EAR_TEMPO_MAX_MS, Math.max(EAR_TEMPO_MIN_MS, earTypicalGap()));
+
+/** One beat (ms): your tempo, or a default until you've played a few notes. */
+const earBeat = () => {
+  const gap = earTypicalGap();
+  return gap ? Math.min(EAR_BEAT_MAX_MS, Math.max(EAR_BEAT_MIN_MS, gap)) : EAR_BEAT_DEFAULT_MS;
+};
+
+/** Ms from now (your last note) to the next bar line after the last playback started. */
+function earNextDelay() {
+  const beat = earBeat();
+  const now = performance.now();
+  if (!test.earPlayStart) return beat;
+  const bar = EAR_BAR_BEATS * beat;
+  const bars = Math.max(1, Math.ceil((now + EAR_MIN_REST_BEATS * beat - test.earPlayStart) / bar));
+  return test.earPlayStart + bars * bar - now;
 }
 
 /**
  * Debug "ear tempo test": the next group doesn't play by itself; you ask for it (space / pedal / replay)
- * when you're ready, and each wait is logged next to what the automatic pause would have been and your
- * note gap at the time, to tune earTempoDelay. Lasts for this page view.
+ * when you're ready, and each wait is logged next to what the automatic pause (earNextDelay) would have
+ * been, with your beat and when you started answering. Lasts for this page view.
  */
 let earTempoTest = false;
-const earTempoLog = []; // { wait, auto, gap } in ms
+const earTempoLog = []; // { batch, beat, answer, group, wait, auto } in ms
 let earTempoPending = null; // { index, done, auto, gap } while waiting for you to ask
 
 function toggleEarTempoTest() {
@@ -570,33 +589,32 @@ const median = (list) => {
 };
 const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
 
+const beats = (ms, beat) => `${(ms / beat).toFixed(1)} beats`;
+
 function earTempoSummary() {
   if (!earTempoLog.length) return "ask for each next group when you're ready";
   const last = earTempoLog.at(-1);
-  const withGap = earTempoLog.filter((e) => e.gap);
-  const ratio = withGap.length ? ` · ${median(withGap.map((e) => e.wait / e.gap)).toFixed(2)}× your note gap` : "";
-  return `last: you ${secs(last.wait)}, auto ${secs(last.auto)} · ${earTempoLog.length} waits: you ${secs(median(earTempoLog.map((e) => e.wait)))}, auto ${secs(
-    median(earTempoLog.map((e) => e.auto)),
-  )}${ratio}`;
+  const inBeats = (key) => median(earTempoLog.map((e) => e[key] / e.beat)).toFixed(1);
+  return `last: you ${secs(last.wait)} (${beats(last.wait, last.beat)}), auto ${secs(last.auto)} (${beats(last.auto, last.beat)}) · ${
+    earTempoLog.length
+  } waits: you ${inBeats("wait")} beats, auto ${inBeats("auto")} beats`;
 }
 
 /** One logged wait as a line of plain text. */
 function earTempoLine(i) {
-  const { wait, auto, gap, batch, group } = earTempoLog[i];
-  return `ear tempo #${i + 1}: batch ${batch} | waited ${secs(wait)} | auto ${secs(auto)} | note gap ${gap ? secs(gap) : "-"}${
-    gap ? ` | wait/gap ${(wait / gap).toFixed(2)}` : ""
-  } | group took ${group ? secs(group) : "-"}`;
+  const { batch, beat, answer, group, wait, auto } = earTempoLog[i];
+  return `ear tempo #${i + 1}: batch ${batch} | beat ${secs(beat)} | answered ${answer === null ? "-" : `${secs(answer)} (${beats(answer, beat)})`} after playback | group took ${
+    group ? `${secs(group)} (${beats(group, beat)})` : "-"
+  } | waited ${secs(wait)} (${beats(wait, beat)}) | auto ${secs(auto)} (${beats(auto, beat)})`;
 }
 
-/** The whole log as plain text (one line per wait, then the summary), for the copy button. */
+/** The whole log as plain text (one line per wait, then per batch size and overall), for the copy button. */
 const earTempoText = () => {
   const batches = [...new Set(earTempoLog.map((e) => e.batch))].sort((a, b) => a - b);
   const perBatch = batches.map((b) => {
     const waits = earTempoLog.filter((e) => e.batch === b);
-    const withGap = waits.filter((e) => e.gap);
-    return `batch ${b}: ${waits.length} waits | you ${secs(median(waits.map((e) => e.wait)))} | auto ${secs(median(waits.map((e) => e.auto)))}${
-      withGap.length ? ` | wait/gap ${median(withGap.map((e) => e.wait / e.gap)).toFixed(2)}` : ""
-    }`;
+    const inBeats = (key) => median(waits.map((e) => e[key] / e.beat)).toFixed(1);
+    return `batch ${b}: ${waits.length} waits | you ${inBeats("wait")} beats | auto ${inBeats("auto")} beats`;
   });
   return [...earTempoLog.map((_, i) => earTempoLine(i)), ...perBatch, earTempoSummary()].join("\n");
 };
@@ -607,9 +625,10 @@ function holdEarForTest() {
   earTempoPending = {
     index: test.engine.index,
     done,
-    auto: earTempoDelay(),
-    gap: earTypicalGap(),
+    auto: earNextDelay(),
+    beat: earBeat(),
     batch: test.cfg.earBatch,
+    answer: test.answerAfter ?? null, // last playback's last note to your first note
     group: test.groupStart ? done - test.groupStart : 0, // first to last note of the group just played
   };
 }
@@ -619,7 +638,8 @@ function logEarWait() {
   const p = earTempoPending;
   earTempoPending = null;
   if (!p || p.index !== test.engine.index) return;
-  const entry = { wait: Math.round(performance.now() - p.done), auto: Math.round(p.auto), gap: Math.round(p.gap), batch: p.batch, group: Math.round(p.group) };
+  const { index, done, ...rest } = p;
+  const entry = { ...rest, wait: Math.round(performance.now() - done), auto: Math.round(p.auto), beat: Math.round(p.beat), group: Math.round(p.group) };
   earTempoLog.push(entry);
   console.log(earTempoLine(earTempoLog.length - 1)); // plain text, to copy from the console
   renderHint();
@@ -630,13 +650,16 @@ function playSequence(a, b) {
   earSequence.forEach(clearTimeout);
   audio.unlock();
   const { items } = test.engine;
+  const beat = earBeat();
   earSequence = [];
+  test.earPlayStart = performance.now(); // (the bar the next group counts from)
+  test.earPlayEnd = test.earPlayStart + (b - a - 1) * beat;
   for (let i = a; i < b; i++) {
     earSequence.push(
       setTimeout(() => {
         audio.play(items[i].notes.map(midiOf), 0.9);
         view?.pulse(i);
-      }, (i - a) * EAR_SEQUENCE_GAP_MS),
+      }, (i - a) * beat),
     );
   }
 }
@@ -900,7 +923,7 @@ function restart() {
   });
   const attack =
     cfg.mode === "attack" ? { lives: ATTACK_LIVES, startNpm: cfg.attackSpeed, npm: cfg.attackSpeed, peak: cfg.attackSpeed, distance: null, last: 0, raf: 0 } : null;
-  test = { cfg, fifths, minor, harmonic, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map(), earGaps: [], lastFound: 0 };
+  test = { cfg, fifths, minor, harmonic, genOpts, engine, attack, pace: paceFor(cfg), revealed: new Set(), wrongs: new Map(), lastFound: 0 };
   view = null;
 
   els.results.hidden = true;
@@ -1032,14 +1055,18 @@ function onInput(ev) {
       test.revealed.add(before); // found by ear: stays visible after a rewind
       // tempo: time since the previous note found in the same group
       const now = performance.now();
-      if (before % test.cfg.earBatch !== 0 && test.lastFound) test.earGaps.push(now - test.lastFound);
-      else test.groupStart = now; // (first note of a group: for the tempo test's log)
+      if (before % test.cfg.earBatch !== 0 && test.lastFound) earGaps.push(now - test.lastFound);
+      else {
+        // first note of a group (for the tempo test's log)
+        test.groupStart = now;
+        test.answerAfter = test.earPlayEnd ? Math.max(0, now - test.earPlayEnd) : null;
+      }
       test.lastFound = now;
     }
     view?.update(before);
     updateLights();
     if (test.cfg.ear && earTempoTest && debug.on && !test.attack && engine.state !== "done" && engine.index === earBatchRange(engine.index)[0]) holdEarForTest();
-    else if (test.cfg.ear) scheduleEarPlay(test.attack ? EAR_ATTACK_NEXT_MS : earTempoDelay());
+    else if (test.cfg.ear) scheduleEarPlay(test.attack ? EAR_ATTACK_NEXT_MS : earNextDelay());
   }
   renderCounter();
   // Let the last note animate first (unless a restart happens meanwhile).
@@ -1073,7 +1100,7 @@ function onWrong(index) {
     if (test.attack) return scheduleEarPlay(EAR_WRONG_DELAY_MS, "current");
     rewindTo(earBatchRange(index)[0]);
     test.lastFound = 0;
-    scheduleEarPlay(Math.max(EAR_WRONG_DELAY_MS, earTempoDelay()));
+    scheduleEarPlay(Math.max(EAR_WRONG_DELAY_MS, 2 * earBeat()));
   } else if (cfg.memory) {
     if (test.attack) return view?.reveal(index);
     rewindTo(Math.floor(index / cfg.memoryBatch) * cfg.memoryBatch);
