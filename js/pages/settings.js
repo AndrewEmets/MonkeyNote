@@ -4,9 +4,7 @@ import { DEFS, valueLabel } from "../setting-defs.js";
 import { applyTheme, themeColors, themeLabel, themeNames } from "../theme.js";
 import { icon } from "../icons.js";
 import { tipAttr } from "../tooltip.js";
-import { keySpecLabel } from "../music.js";
-import { keyMenuItems } from "../key-menu.js";
-import { closeMenu, openMenu } from "../menu.js";
+import { closeMenu } from "../menu.js";
 import { midiOut, midiStatus, onMidiChange } from "../midi.js";
 import { midiName, midiRange, PRESETS } from "../midi-range.js";
 import { clearHistory } from "../history.js";
@@ -18,13 +16,8 @@ import { audio } from "../audio.js";
 const SECTIONS = [
   { id: "input", title: "input", icon: "keyboard", rows: [midiRow, midiRangeRow, "fitRange", "keyLights", "keyLightChannel", "chordWindow", "ignoreOctave", "onScreenKeyboard", "keyLabels"] },
   { id: "sound", title: "sound", icon: "volume", rows: ["playOnPress", soundOutputRow, "instrument", volumeRow, "errorSound"] },
-  {
-    id: "notation",
-    title: "notation",
-    icon: "note",
-    rows: ["clef", keySignatureRow, "accidentals", "ledgerLines", "maxLeap", "chordStyle", "maxChordNotes", "chordPower", "noteNames"],
-  },
-  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "staffLines", "barLines", "caretStyle", paceCaretRow, "smoothCaret", "flipColors", "fontFamily"] },
+  // (clef, key, accidentals, leaps, ledger lines and chords are picked above the staff on the test page)
+  { id: "appearance", title: "appearance", icon: "eye", rows: ["noteSize", "noteNames", "staffLines", "barLines", "caretStyle", paceCaretRow, "smoothCaret", "flipColors", "fontFamily"] },
   { id: "theme", title: "theme", icon: "palette", rows: ["randomTheme", customThemeRow, themeGrid] },
   { id: "danger", title: "danger zone", icon: "warning", rows: [dangerRows] },
 ];
@@ -161,15 +154,6 @@ function midiStatusText() {
 }
 
 /** Key: one button showing the current key; it opens the random / major / minor menu. */
-function keySignatureRow() {
-  return `
-    <div class="setting">
-      <div class="setting-title">${icon("key")}<span>${DEFS.keySignature.title}</span></div>
-      <div class="setting-text">${DEFS.keySignature.text}</div>
-      <div class="setting-buttons"><button class="button active key-pick" data-action="key-menu">${keySpecLabel(settings.get("keySignature"))}</button></div>
-    </div>`;
-}
-
 /** Volume as a slider in 5% steps. */
 function volumeRow() {
   const v = settings.get("volume");
@@ -299,7 +283,6 @@ function onClick(e) {
   else if (target.dataset.action === "to-top") window.scrollTo({ top: 0, behavior: "smooth" });
   else if (target.dataset.collapse) target.closest(".settings-section").classList.toggle("collapsed");
   else if (target.dataset.action === "custom-theme") useCustomTheme();
-  else if (target.dataset.action === "key-menu") openMenu(target, () => keyMenuItems(settings.get("keySignature"), (spec) => settings.set("keySignature", spec)));
   else if (target.dataset.action === "reset" && confirm("Reset all settings to defaults? This cannot be undone.")) settings.reset();
   else if (target.dataset.action === "clear-history" && confirm("Delete all saved results and personal bests? This cannot be undone.")) {
     clearHistory();
@@ -376,7 +359,6 @@ function refresh(key, value) {
   for (const btn of root.querySelectorAll(`[data-key="${key}"]`)) btn.classList.toggle("active", JSON.parse(btn.dataset.value) === value);
   if (key === "soundOutput") root.querySelector(".sound-output-status").textContent = soundOutputStatus();
   if (key === "volume") syncVolumeSlider();
-  if (key === "keySignature") root.querySelector(".key-pick").textContent = keySpecLabel(value);
   // Preview the new tone or volume with a C major chord (once the volume slider stops moving).
   if (key === "instrument" || key === "soundOutput") audio.play([60, 64, 67], 1);
   if (key === "volume") {

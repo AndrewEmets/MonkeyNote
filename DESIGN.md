@@ -21,7 +21,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 - **Test config bar**: presentation (default / memory / ear, one at a time) | batch (memory: 2/4/8/custom;
   ear: 1/2/3/custom) | mode (notes, time, attack, zen) | length (presets + custom). Sections grow in and
   collapse by width when they appear or go, so the others slide instead of jumping.
-- **Above the staff**: level, clef, key, single notes / chords, max leap and ledger lines are dropdowns; key and chords open side
+- **Above the staff**: level, clef, key, accidentals, single notes / chords, max leap and ledger lines are dropdowns; key and chords open side
   panels (random / major / minor / harmonic minor; density / style / max notes). A pick keeps the dropdown
   open (checkmarks update) so several things can be changed; an outside click or Esc closes it.
 - **Test area**: a line of notes on a staff with a caret. At the end of a line (or memory batch) the last
@@ -42,6 +42,14 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
   beside it, tighter spacing, no keyboard hints, shorter on-screen keys and one staff line, so the test fits
   without scrolling (on-screen keyboard included from ~840px wide).
 - **Header**: logo, test / stats / settings, and a user-settings button (placeholder for now).
+- **Per-presentation settings**: default, memory and ear each keep their own mode, length and notation
+  (clef, key, accidentals, leaps, ledger lines, chords). Switching presentation brings back the ones last
+  used there; the first switch copies the current ones. Picking a ranked level switches to default first.
+  Reset settings starts all three over.
+- **Share settings** (icon at the end of the line above the staff, or the command line): a dialog with
+  groups to include (test, notation, input, sound, appearance, theme; all on), a link and a copy button.
+  The link is `?s=` + base64url JSON of the chosen groups and their non-default values; opening it applies
+  them (presentation first), shows a note and removes the parameter from the address bar.
 - **Footer**: shortcut hints, theme name (click to open theme picker).
 - **Shortcuts**: Tab restarts; Esc or Ctrl/Cmd+Shift+P opens the command palette: search every setting
   and action, settings open a submenu of their values, themes preview as you move through them.
@@ -192,8 +200,9 @@ back-to-top button once scrolled down:
 - **behavior**: (reserved) quick restart, test length defaults.
 - **input**: MIDI device, chord window, keyboard octave, on-screen keyboard on/off.
 - **sound**: play notes you press (off / keyboard & screen / all), instrument, volume, error sound.
-- **notation**: clef, range, key signature, accidentals, max leap, chord style, note size, show note names (helper).
-- **appearance**: note size, staff lines, caret style, smooth caret, flip test colors, font.
+- (no notation section: clef, key, accidentals, leaps, ledger lines and chords are picked above the staff)
+- **appearance**: note size, note names (helper), staff lines, divider lines, caret style, pace caret, smooth
+  caret, flip test colors, font.
 - **theme**: random theme (each test), custom theme (8 color pickers, starting from the current theme), preset grid with search and hover preview. The tab icon takes the theme's colors.
 - **danger zone**: reset settings, clear stats.
 

@@ -146,6 +146,7 @@ function save(values) {
 
 let values = load();
 const listeners = new Set();
+let resetting = false;
 
 export const settings = {
   get: (key) => values[key],
@@ -160,8 +161,15 @@ export const settings = {
     const changed = Object.keys(DEFAULTS).filter((k) => values[k] !== DEFAULTS[k]);
     values = { ...DEFAULTS };
     save(values);
-    for (const key of changed) for (const fn of listeners) fn(key, values[key]);
+    resetting = true;
+    try {
+      for (const key of changed) for (const fn of listeners) fn(key, values[key]);
+    } finally {
+      resetting = false;
+    }
   },
+  /** True while reset() is announcing its changes (so listeners don't react to them one by one). */
+  isResetting: () => resetting,
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);

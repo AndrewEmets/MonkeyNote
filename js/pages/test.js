@@ -17,7 +17,7 @@ import { tipAttr } from "../tooltip.js";
 import { notify } from "../notify.js";
 import { audio } from "../audio.js";
 import { themeNames } from "../theme.js";
-import { askNumber, isPaletteOpen } from "../palette.js";
+import { askNumber, isPaletteOpen, openShare } from "../palette.js";
 import { closeMenu, openMenu } from "../menu.js";
 import { valueLabel } from "../setting-defs.js";
 import { debug } from "../debug.js";
@@ -44,6 +44,8 @@ const PRESENTATIONS = [
 ];
 const presentationOf = (s) => (s.ear ? "ear" : s.memory ? "memory" : "default");
 function setPresentation(p) {
+  // Turn the new one on first, so there's no stop at "default" on the way (each switch loads settings, see profiles.js).
+  if (p !== "default") settings.set(p, true);
   settings.set("memory", p === "memory");
   settings.set("ear", p === "ear");
 }
@@ -776,6 +778,7 @@ function renderMeta() {
     },
     { pick: "clef", html: clef },
     { pick: "keySignature", html: key },
+    { pick: "accidentals", html: cfg.accidentals },
     { pick: "chords", html: cfg.chords ? `chords: ${valueLabel("chordPower", cfg.chordPower)}` : "single notes" },
     { pick: "maxLeap", html: `max leap: ${valueLabel("maxLeap", cfg.maxLeap)}` },
     { pick: "ledgerLines", html: ledgerLabel(cfg.ledgerLines) },
@@ -791,12 +794,13 @@ function renderMeta() {
     });
     return;
   }
-  els.meta.innerHTML = picks
-    .map((p) => `<button class="meta-pick${p.cls ? ` ${p.cls}` : ""}" data-pick="${p.pick}"${tipAttr(p.tip)}>${p.html}</button>`)
-    .join(" · ");
+  els.meta.innerHTML =
+    picks.map((p) => `<button class="meta-pick${p.cls ? ` ${p.cls}` : ""}" data-pick="${p.pick}"${tipAttr(p.tip)}>${p.html}</button>`).join(" · ") +
+    `<button class="meta-pick meta-share" data-action="share" aria-label="share settings"${tipAttr("share settings")}>${icon("share")}</button>`;
 }
 
 function onMetaClick(e) {
+  if (e.target.closest('[data-action="share"]')) return openShare();
   const btn = e.target.closest("[data-pick]");
   if (!btn) return;
   const key = btn.dataset.pick;

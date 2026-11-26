@@ -47,7 +47,8 @@ export function rankStatus(cfg, { hints = false } = {}) {
 
 // Your own ("custom") settings are remembered when you switch to a level, so "custom" brings them back.
 const CUSTOM_KEY = "monkeynote.customSettings";
-const LEVEL_KEYS = [...new Set(LEVELS.flatMap((l) => Object.keys(l.settings))), "memory", "ear"];
+// (memory and ear first: restoring them switches presentation before the rest is restored)
+const LEVEL_KEYS = ["memory", "ear", ...new Set(LEVELS.flatMap((l) => Object.keys(l.settings)))];
 
 let remembered = (() => {
   try {
@@ -71,9 +72,10 @@ export function applyLevel(id) {
   const level = LEVELS.find((l) => l.id === id);
   if (!level) return;
   if (!matchingLevel(settings.all())) saveCustom();
-  for (const [key, value] of Object.entries(level.settings)) settings.set(key, value);
+  // Presentation first: switching it brings back that presentation's own settings (profiles.js).
   settings.set("memory", false);
   settings.set("ear", false);
+  for (const [key, value] of Object.entries(level.settings)) settings.set(key, value);
 }
 
 /** Back to the settings you had before picking a level (if any were remembered). */

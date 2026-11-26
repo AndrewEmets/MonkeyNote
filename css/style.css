@@ -847,6 +847,90 @@ kbd {
   gap: 0.3rem;
 }
 
+/* share dialog */
+.share-groups {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+}
+
+.share-group {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 1rem;
+  text-align: left;
+  color: var(--sub-color);
+  transition: color 0.12s, background-color 0.12s;
+}
+
+.share-group:hover {
+  background: var(--sub-alt-color);
+}
+
+.share-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.25rem;
+  background: var(--bg-color);
+  color: transparent;
+  font-size: 0.85rem;
+}
+
+.share-group[aria-pressed="true"] {
+  color: var(--text-color);
+}
+
+.share-group[aria-pressed="true"] .share-box {
+  background: var(--main-color);
+  color: var(--bg-color);
+}
+
+.share-title {
+  min-width: 6rem;
+}
+
+.share-text {
+  font-size: 0.8rem;
+  color: var(--sub-color);
+}
+
+.share-link {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0;
+}
+
+.share-link input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--sub-alt-color);
+  border: none;
+  border-radius: var(--radius);
+  outline: none;
+  color: var(--sub-color);
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.share-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  white-space: nowrap;
+}
+
+.share-copy:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* number prompt: editable quick picks (memory / ear batch sizes in the test bar) */
 .palette-presets {
   display: flex;
@@ -1001,6 +1085,13 @@ body.focus-mode .restart-button {
   color: var(--sub-color);
   border-bottom: 1px dashed transparent;
   transition: color 0.15s, border-color 0.15s;
+}
+
+.meta-share {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.75rem;
+  border-bottom: none;
 }
 
 .meta-pick.ranked {

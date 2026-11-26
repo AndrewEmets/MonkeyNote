@@ -6,6 +6,7 @@ import { applyTheme, themeColors, themeLabel, themeNames } from "./theme.js";
 import { icon } from "./icons.js";
 import { debug } from "./debug.js";
 import { hideTooltip } from "./tooltip.js";
+import { SHARE_GROUPS, shareUrl } from "./share.js";
 
 let overlay = null;
 let input = null;
@@ -35,6 +36,7 @@ function rootMenu() {
       { label: "go to stats", icon: "chart", run: () => (location.hash = "#stats") },
       { label: "go to test", icon: "piano", run: () => (location.hash = "") },
       { label: "theme...", icon: "palette", hint: themeLabel(settings.get("theme")), sub: themeMenu },
+      { label: "share settings", icon: "share", run: () => setTimeout(openShare) },
       { label: "toggle debug mode", icon: "bug", hint: debug.on ? "on" : "off", run: () => debug.toggle() },
       ...settingItems,
     ],
@@ -124,14 +126,11 @@ export function closePalette() {
   applyTheme(settings.get("theme"), { persist: false }); // undo any theme preview
 }
 
-/**
- * Small number prompt in the palette's style (used for "custom" values).
- * Resolves to the number, or null if cancelled. Counts as an open palette while shown.
- */
 const stepper = () =>
   `<span class="stepper"><button type="button" class="step" data-step="-1" aria-label="decrease">${icon("minus")}</button><button type="button" class="step" data-step="1" aria-label="increase">${icon("plus")}</button></span>`;
 
 /**
+ * Number prompt in the palette's style (used for "custom" values); counts as an open palette while shown.
  * Ask for a whole number in [min, max]; resolves to it, or null if cancelled.
  * With `presets` (the test bar's quick-pick values), they can be edited too, and the result is
  * { value, presets } (presets sorted).
@@ -195,6 +194,60 @@ export function askNumber({ title, value, min, max, presets = null }) {
     field.focus();
     field.select();
   });
+}
+
+/**
+ * Share dialog: pick which groups of settings go into the link (all by default), then copy it.
+ * Counts as an open palette while shown.
+ */
+export function openShare() {
+  if (overlay) closePalette();
+  hideTooltip();
+  const chosen = new Set(SHARE_GROUPS.map((g) => g.id));
+  overlay = document.createElement("div");
+  overlay.className = "palette-backdrop";
+  overlay.innerHTML = `
+    <div class="palette share-dialog" role="dialog" aria-label="share settings">
+      <div class="palette-input">${icon("share")}<span class="palette-crumb">share settings</span></div>
+      <div class="share-groups">${SHARE_GROUPS.map(
+        (g) => `<button type="button" class="share-group" data-group="${g.id}" aria-pressed="true"><span class="share-box">${icon("check")}</span><span class="share-title">${g.title}</span><span class="share-text">${g.text}</span></button>`,
+      ).join("")}</div>
+      <div class="share-link"><input type="text" readonly spellcheck="false" aria-label="link to these settings" /><button type="button" class="button share-copy">${icon("copy")}<span>copy link</span></button></div>
+      <div class="palette-empty">opening the link applies these settings · esc to close</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const field = overlay.querySelector(".share-link input");
+  const copy = overlay.querySelector(".share-copy");
+  const update = () => {
+    for (const btn of overlay.querySelectorAll("[data-group]")) btn.setAttribute("aria-pressed", String(chosen.has(btn.dataset.group)));
+    field.value = shareUrl([...chosen]);
+    copy.disabled = chosen.size === 0;
+  };
+  overlay.querySelector(".share-groups").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-group]");
+    if (!btn) return;
+    if (chosen.has(btn.dataset.group)) chosen.delete(btn.dataset.group);
+    else chosen.add(btn.dataset.group);
+    update();
+  });
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(field.value);
+    } catch {
+      field.select(); // clipboard blocked: leave the link selected to copy by hand
+      document.execCommand?.("copy");
+    }
+    copy.querySelector("span").textContent = "copied";
+    setTimeout(() => copy.isConnected && (copy.querySelector("span").textContent = "copy link"), 1500);
+  });
+  field.addEventListener("focus", () => field.select());
+  overlay.addEventListener("mousedown", (e) => e.target === overlay && closePalette());
+  overlay.addEventListener("keydown", (e) => {
+    e.stopPropagation(); // keys don't reach the test (or open the palette) while sharing
+    if (e.key === "Escape") closePalette();
+  });
+  update();
+  copy.focus();
 }
 
 // ---- rendering ----

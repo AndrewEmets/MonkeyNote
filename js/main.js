@@ -6,11 +6,14 @@ import { input } from "./input.js";
 import { audio } from "./audio.js";
 import { isPaletteOpen, openPalette } from "./palette.js";
 import { initTooltips, tipAttr } from "./tooltip.js";
+import { initProfiles } from "./profiles.js";
+import { applySharedLink } from "./share.js";
+import { notify } from "./notify.js";
 import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.14.0";
+export const VERSION = "0.15.0";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
@@ -55,6 +58,11 @@ function route() {
   }
   if (section) currentPage.scrollToSection?.(section);
 }
+
+// Per-presentation settings, then settings from a shared link (before anything reads them).
+initProfiles();
+const shared = applySharedLink();
+if (shared) notify(shared.ok ? `settings applied from link (${shared.applied})` : "couldn't read the settings in this link", { type: shared.ok ? "info" : "error" });
 
 applyTheme(settings.get("theme"));
 applyFont(settings.get("fontFamily"));
