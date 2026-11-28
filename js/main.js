@@ -13,7 +13,7 @@ import * as testPage from "./pages/test.js";
 import * as settingsPage from "./pages/settings.js";
 import * as statsPage from "./pages/stats.js";
 
-export const VERSION = "0.20.0";
+export const VERSION = "0.20.1";
 
 const pages = { test: testPage, settings: settingsPage, stats: statsPage };
 let currentPage = null;
@@ -34,7 +34,7 @@ function renderFooter() {
     <div class="keytips"><kbd>tab</kbd> - restart test<br /><kbd>esc</kbd> or <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>p</kbd> - command line</div>
     <div class="footer-row">
       <div class="footer-links">
-        <a href="https://github.com/AndrewEmets/MonkeyScore" target="_blank" rel="noopener">${icon("code")}<span>github</span></a>
+        <a href="https://github.com/MonkeyScore/app" target="_blank" rel="noopener">${icon("code")}<span>github</span></a>
       </div>
       <div class="footer-links">
         <button class="theme-indicator">${icon("palette")}<span>${themeLabel(settings.get("theme"))}</span></button>

@@ -2,7 +2,7 @@
 
 A sight-reading trainer for piano notation (formerly MonkeyNote), in the spirit of [MonkeyType](https://monkeytype.com).
 
-Live: https://andrewemets.github.io/MonkeyScore/
+Live: https://monkeyscore.github.io/app/
 
 See [DESIGN.md](DESIGN.md) for the plan.
 

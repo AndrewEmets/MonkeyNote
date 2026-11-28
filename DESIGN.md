@@ -8,7 +8,7 @@ themes, and keyboard-driven flow, applied to reading notes on a staff.
 | Topic | Decision |
 |---|---|
 | Stack | Vanilla HTML + JS (ES modules), no build step. Small libraries only if unavoidable. |
-| Hosting | GitHub Pages, served from `main` root: https://andrewemets.github.io/MonkeyScore/ |
+| Hosting | GitHub Pages, served from `main` root: https://monkeyscore.github.io/app/ |
 | App | Installable (web app manifest, icons in `icons/` drawn by `tools/build-icons.py`) and usable offline: `sw.js` serves network-first with the cached copy as fallback (fonts cache-first); the page hands it the files it loaded before the worker took over. |
 | Storage | `localStorage` only: settings, results (last 5000), personal bests, activity counters. No backend. |
 | Notation | Own SVG renderer. Pitch only: no rhythm, bars, or tempo. Glyph outlines (clefs, noteheads, accidentals) extracted from Bravura into `js/data/glyphs.js` by `tools/extract-glyphs.py`. |
